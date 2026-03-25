@@ -1,0 +1,338 @@
+// prisma/schema.prisma
+// IBA Dashboard — Database Schema
+// Derived from: IBA_Dashboard_Technical_Spec.pdf
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────
+
+enum WorkflowStatus {
+  active
+  paused
+  deploying
+}
+
+enum BookingType {
+  automation
+  cowork
+  custom_app
+  implementation
+}
+
+enum BookingStatus {
+  draft
+  booked
+  in_review
+  in_progress
+  deployed
+  paused
+  cancelled
+}
+
+enum CredentialType {
+  api_key
+  webhook
+  software
+}
+
+enum CredentialEnvironment {
+  production
+  staging
+  development
+}
+
+enum OtpPurpose {
+  login
+  credential_reveal
+}
+
+enum MessageCategory {
+  support
+  booking
+  credential
+}
+
+enum ThreadStatus {
+  open
+  closed
+}
+
+enum SenderType {
+  client
+  admin
+}
+
+enum SubscriptionPlan {
+  free
+  pro
+  enterprise
+}
+
+enum SubscriptionStatus {
+  active
+  trialing
+  past_due
+  cancelled
+}
+
+enum BillingCycle {
+  monthly
+  annual
+}
+
+enum TeamRole {
+  viewer
+  editor
+  admin
+}
+
+enum NotificationType {
+  message
+  booking_update
+  automation_deployed
+  automation_stopped
+  automation_started
+  automation_error
+  order_confirmed
+}
+
+// ─────────────────────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id                       String    @id @default(uuid())
+  email                    String    @unique
+  password_hash            String
+  first_name               String
+  last_name                String
+  company_name             String?
+  phone                    String?
+  timezone                 String    @default("UTC")
+  /// Decimal precision for ROI calculations
+  hourly_rate              Decimal   @db.Decimal(10, 2)
+  /// Self-referential FK: optional account manager (also a User)
+  account_manager_id       String?
+  /// JSONB: { email: boolean, whatsapp: boolean }
+  notification_preferences Json      @default("{\"email\": true, \"whatsapp\": false}")
+  created_at               DateTime  @default(now())
+  /// Soft-delete: null means active, set to timestamp on deletion
+  deleted_at               DateTime?
+
+  // ── Relations ──────────────────────────────────────────────
+  account_manager  User?          @relation("AccountManager", fields: [account_manager_id], references: [id])
+  managed_clients  User[]         @relation("AccountManager")
+
+  subscription     Subscription?
+  workflows        IbaWorkflow[]
+  bookings         Booking[]
+  credentials      Credential[]
+  otp_codes        OtpCode[]
+  message_threads  MessageThread[]
+  notifications    Notification[]
+
+  /// Teams where this user is the workspace owner
+  team_as_owner    TeamMember[]   @relation("TeamOwner")
+  /// Teams where this user is an invited member
+  team_as_member   TeamMember[]   @relation("TeamMember")
+}
+
+model IbaWorkflow {
+  id                     String         @id @default(uuid())
+  client_id              String
+  /// Unique ID from the external n8n automation instance
+  n8n_workflow_id        String         @unique
+  name                   String
+  department             String
+  /// Optional link to the Booking that triggered this workflow's deployment
+  booking_id             String?
+  status                 WorkflowStatus @default(active)
+  /// Minutes of time saved per automation run (used in ROI dashboard)
+  time_saving_multiplier Int?
+  created_at             DateTime       @default(now())
+  deployed_at            DateTime?
+
+  // ── Relations ──────────────────────────────────────────────
+  client  User     @relation(fields: [client_id], references: [id])
+  booking Booking? @relation(fields: [booking_id], references: [id])
+}
+
+model Booking {
+  /// Human-readable sequential ID: BOOK-0001, BOOK-0002, etc.
+  /// Must be generated at the application layer — NOT auto-incremented by Prisma.
+  id                  String        @id
+  client_id           String
+  type                BookingType
+  status              BookingStatus @default(draft)
+  /// AI-generated or manually set by admin
+  title               String?
+  use_case            String
+  /// Specific to automation bookings: the problem being solved
+  problem             String?
+  /// Specific to automation bookings: the desired outcome
+  outcome             String?
+  /// JSONB: list of selected tools, e.g. ["Stripe", "Shopify", "Gmail"]
+  tools_list          Json?
+  /// e.g. "Daily", "Weekly", "On trigger"
+  schedule_frequency  String?
+  /// JSONB: client notification preferences for this booking
+  notifications       Json?
+  /// JSONB: persists multi-step wizard progress for draft bookings
+  draft_state         Json?
+  /// Number of days for setup — set by admin after booking is confirmed
+  timeline_setup_days Int?
+  /// Projected deployment date — set by admin
+  deployment_date     DateTime?
+  booked_at           DateTime?
+  deployed_at         DateTime?
+
+  // ── Relations ──────────────────────────────────────────────
+  client               User          @relation(fields: [client_id], references: [id])
+  /// A booking can have at most one associated workflow (after deployment)
+  workflow             IbaWorkflow[]
+  system_notifications Notification[]
+}
+
+model Credential {
+  id               String                @id @default(uuid())
+  client_id        String
+  type             CredentialType
+  name             String
+  /// The external service this credential belongs to, e.g. "Stripe", "Shopify"
+  service          String?
+  environment      CredentialEnvironment @default(production)
+  /// IMPORTANT: Encrypted at the application layer using AES-256-GCM
+  /// Stored as: { iv: string, authTag: string, ciphertext: string }
+  fields_encrypted Json
+  added_at         DateTime              @default(now())
+  last_used_at     DateTime?
+  /// Soft-delete: set timestamp to logically delete, keep for audit trail
+  deleted_at       DateTime?
+
+  // ── Relations ──────────────────────────────────────────────
+  client     User                 @relation(fields: [client_id], references: [id])
+  audit_logs CredentialAuditLog[]
+}
+
+model OtpCode {
+  id         String     @id @default(uuid())
+  user_id    String
+  /// bcrypt-hashed 6-digit OTP — never store raw codes
+  code_hash  String
+  purpose    OtpPurpose
+  created_at DateTime   @default(now())
+  /// OTP is valid for 10 minutes from creation
+  expires_at DateTime
+  /// Set when the OTP has been consumed; NULL means still valid (if not expired)
+  used_at    DateTime?
+
+  // ── Relations ──────────────────────────────────────────────
+  user User @relation(fields: [user_id], references: [id])
+}
+
+model MessageThread {
+  id                String          @id @default(uuid())
+  client_id         String
+  category          MessageCategory
+  /// Polymorphic reference: points to a Booking.id or Credential.id
+  /// Use `category` as the discriminator to determine the target model
+  related_entity_id String?
+  status            ThreadStatus    @default(open)
+  last_message_at   DateTime?
+  created_at        DateTime        @default(now())
+
+  // ── Relations ──────────────────────────────────────────────
+  client   User      @relation(fields: [client_id], references: [id])
+  messages Message[]
+}
+
+model Message {
+  id          String     @id @default(uuid())
+  thread_id   String
+  /// ID of the sender — references User.id (for clients) or an admin user ID
+  sender_id   String
+  sender_type SenderType
+  body        String
+  sent_at     DateTime   @default(now())
+  /// NULL means unread; set when the recipient reads the message
+  read_at     DateTime?
+
+  // ── Relations ──────────────────────────────────────────────
+  thread MessageThread @relation(fields: [thread_id], references: [id])
+}
+
+model Subscription {
+  id                     String             @id @default(uuid())
+  /// One-to-One with User via unique constraint
+  client_id              String             @unique
+  plan                   SubscriptionPlan   @default(free)
+  status                 SubscriptionStatus @default(trialing)
+  billing_cycle          BillingCycle       @default(monthly)
+  /// Stripe subscription object ID, e.g. "sub_..."
+  stripe_subscription_id String?
+  next_billing_date      DateTime?
+  /// Running count of active automations (for plan limit enforcement)
+  automations_used       Int                @default(0)
+  /// Max automations allowed under this plan tier
+  automations_limit      Int                @default(1)
+  /// If true, subscription will not renew at period end (scheduled for cancellation)
+  cancels_at_period_end  Boolean            @default(false)
+
+  // ── Relations ──────────────────────────────────────────────
+  client User @relation(fields: [client_id], references: [id])
+}
+
+model TeamMember {
+  id             String    @id @default(uuid())
+  owner_user_id  String
+  member_user_id String
+  role           TeamRole  @default(viewer)
+  invited_at     DateTime  @default(now())
+  accepted_at    DateTime?
+
+  // ── Relations ──────────────────────────────────────────────
+  owner  User @relation("TeamOwner",  fields: [owner_user_id],  references: [id])
+  member User @relation("TeamMember", fields: [member_user_id], references: [id])
+
+  /// Prevent duplicate team memberships
+  @@unique([owner_user_id, member_user_id])
+}
+
+model CredentialAuditLog {
+  id            String     @id @default(uuid())
+  credential_id String
+  user_id       String
+  /// IP address of the requester at the time of reveal
+  ip_address    String?
+  revealed_at   DateTime   @default(now())
+
+  // ── Relations ──────────────────────────────────────────────
+  credential Credential @relation(fields: [credential_id], references: [id])
+
+  @@map("credentials_audit_log")
+}
+
+model Notification {
+  id         String           @id @default(uuid())
+  client_id  String
+  type       NotificationType
+  title      String
+  body       String
+  /// Optional: link notification to a specific booking
+  booking_id String?
+  read_at    DateTime?
+  created_at DateTime         @default(now())
+
+  // ── Relations ──────────────────────────────────────────────
+  client  User     @relation(fields: [client_id], references: [id])
+  booking Booking? @relation(fields: [booking_id], references: [id])
+}

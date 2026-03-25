@@ -167,16 +167,6 @@ const css = `
 `;
 
 // ─── Shared Icons ─────────────────────────────────────────────────────────────
-function SparklesIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5z" />
-      <path d="M5 16l.75 2.25L8 19l-2.25.75L5 22l-.75-2.25L2 19l2.25-.75z" />
-      <path d="M19 2l.75 2.25L22 5l-2.25.75L19 8l-.75-2.25L16 5l2.25-.75z" />
-    </svg>
-  );
-}
-
 function ArrowRightIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -296,7 +286,7 @@ function StepUseCase({ form, setForm, onNext }: { form: AiAppsForm; setForm: (f:
                 />
                 <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 16px 16px' }}>
                   <OptimizePromptButton
-                    onOptimize={() => setForm(f => ({ ...f, description: f.description + ' (AI-enhanced: Refined architecture with scalable module separation and smart state management.)' }))}
+                    onOptimize={() => setForm({ ...form, description: form.description + ' (AI-enhanced: Refined architecture with scalable module separation and smart state management.)' })}
                     disabled={!form.description.trim()}
                   />
                 </div>

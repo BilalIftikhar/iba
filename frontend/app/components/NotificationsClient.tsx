@@ -413,9 +413,9 @@ function NotificationCard({ item }: { item: NotificationItem }) {
           <span 
             className="inline-block px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg"
             style={{ 
-              backgroundColor: item.badgeStyles.bg, 
-              color: item.badgeStyles.color,
-              border: item.badgeStyles.border || 'none'
+              backgroundColor: item.badgeStyles?.bg, 
+              color: item.badgeStyles?.color,
+              border: item.badgeStyles?.border || 'none'
             }}
           >
             {item.badgeText}

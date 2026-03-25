@@ -8,7 +8,6 @@ export default function SettingsClient() {
     const [emailAlerts, setEmailAlerts] = useState(true);
     const [slackAlerts, setSlackAlerts] = useState(true);
     const [whatsappAlerts, setWhatsappAlerts] = useState(false);
-    const [smsAlerts, setSmsAlerts] = useState(false);
     const [twoFactor, setTwoFactor] = useState(true);
     const [loginAlerts, setLoginAlerts] = useState(false);
 
@@ -158,7 +157,6 @@ export default function SettingsClient() {
                                     description="Weekly reports and security notices." 
                                     active={emailAlerts} 
                                     onToggle={() => setEmailAlerts(!emailAlerts)} 
-                                    isCheckbox={false} // Match design: Mobile uses toggles, Desktop uses checkboxes? Looked like Mobile used toggles! Desktop used cyan squares with checkmarks.
                                     mobileToggle
                                 />
                                 

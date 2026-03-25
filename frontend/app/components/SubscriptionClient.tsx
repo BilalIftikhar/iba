@@ -283,7 +283,7 @@ function FeatureItem({ text, isPro = false }: { text: string, isPro?: boolean })
     );
 }
 
-function FooterItem({ icon, label, value, sub, color }: { icon: React.ReactNode, label: string, value: string, sub: string, color?: string }) {
+function FooterItem({ icon, label, value, sub, color }: { icon: React.ReactNode, label: string, value: React.ReactNode, sub?: string, color?: string }) {
     return (
         <div className="flex flex-col gap-1 w-[calc(50%-12px)] md:w-auto">
             <div className="flex items-center gap-2 text-slate-400">

@@ -5,48 +5,10 @@ import { OptimizePromptButton } from './OptimizePromptButton';
 import { AnimatedTextarea } from './AnimatedTextarea';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
-function SparklesIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5z" />
-      <path d="M5 16l.75 2.25L8 19l-2.25.75L5 22l-.75-2.25L2 19l2.25-.75z" />
-      <path d="M19 2l.75 2.25L22 5l-2.25.75L19 8l-.75-2.25L16 5l2.25-.75z" />
-    </svg>
-  );
-}
-
 function ArrowRightIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 12h14M12 5l7 7-7 7" />
-    </svg>
-  );
-}
-
-
-
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  );
-}
-
-function BellIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-    </svg>
-  );
-}
-
-function AIButtonIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
     </svg>
   );
 }
@@ -189,7 +151,8 @@ function StepUseCase({
   onSave,
   activeCategory,
   setActiveCategory,
-  onStop
+  onStop,
+  onShowDetail
 }: {
   useCase: string;
   setUseCase: (v: string) => void;
@@ -197,8 +160,8 @@ function StepUseCase({
   activeCategory: string;
   setActiveCategory: (v: string) => void;
   onStop: () => void;
+  onShowDetail: () => void;
 }) {
-  const [optimizing, setOptimizing] = useState(false);
   const [isOptimized, setIsOptimized] = useState(false);
 
   const filtered = activeCategory === 'All' ? TEMPLATES : TEMPLATES.filter(t => t.category === activeCategory);
@@ -339,7 +302,7 @@ function StepUseCase({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setIsDetailModalOpen(true);
+                    onShowDetail();
                   }}
                   style={{ backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', color: '#1F2937', display: 'flex', alignItems: 'center', gap: '4px' }}
                 >
@@ -835,13 +798,14 @@ export function AutomationsClient() {
             {/* Main Content Areas */}
             <div style={{ backgroundColor: '#FFFFFF', borderRadius: '24px', padding: '32px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
               {step === 1 && (
-                <StepUseCase
+                                <StepUseCase
                   useCase={useCase}
                   setUseCase={setUseCase}
                   onSave={() => setStep(2)}
                   activeCategory={activeCategory}
                   setActiveCategory={setActiveCategory}
                   onStop={() => setIsStopModalOpen(true)}
+                  onShowDetail={() => setIsDetailModalOpen(true)}
                 />
               )}
               {step === 2 && (

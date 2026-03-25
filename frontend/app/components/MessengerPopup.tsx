@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+
 import { createPortal } from 'react-dom';
 
 interface MessengerPopupProps {
@@ -84,6 +85,7 @@ export function MessengerPopup({ isOpen, onClose }: MessengerPopupProps) {
         <div className="p-4 px-5 flex items-center justify-between border-b border-slate-50 bg-white">
           <div className="flex items-center gap-3">
             <div className="relative w-11 h-11 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center border border-slate-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/images/messenger_avatar.png" alt="Support" className="w-full h-full object-cover" onError={(e) => e.currentTarget.src = 'https://ui-avatars.com/api/?name=IBA+Support&background=E0FCF9&color=00C2FF'} />
                 <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
             </div>
@@ -131,7 +133,7 @@ export function MessengerPopup({ isOpen, onClose }: MessengerPopupProps) {
           <div className="flex flex-col items-end gap-1 max-w-[90%] self-end">
             <div className="bg-[#00D1FF] rounded-[16px] rounded-tr-none p-3 px-3.5 shadow-lg shadow-cyan-400/10">
               <p className="text-[13px] text-white leading-relaxed font-medium">
-                I'm having trouble adding my certification from last week. It says the ID is invalid.
+                I&apos;m having trouble adding my certification from last week. It says the ID is invalid.
               </p>
             </div>
             <span className="text-[10px] text-slate-400 mr-1 font-medium">09:42 AM</span>
@@ -143,7 +145,7 @@ export function MessengerPopup({ isOpen, onClose }: MessengerPopupProps) {
             <div>
               <div className="bg-[#F8FAFC] border border-[#F1F5F9] rounded-[18px] rounded-tl-none p-3 px-3.5">
                 <p className="text-[13px] text-[#334155] leading-relaxed">
-                  I'm sorry to hear that. Could you please provide the 12-digit reference number on your receipt?
+                  I&apos;m sorry to hear that. Could you please provide the 12-digit reference number on your receipt?
                 </p>
               </div>
               <span className="text-[10px] text-slate-400 ml-1 mt-1 block font-medium">09:43 AM</span>

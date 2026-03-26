@@ -2,18 +2,8 @@
 
 import React, { useState } from 'react';
 
+
 // ─── Icons ───────────────────────────────────────────────────────
-const IconGrid = ({ cls = '' }) => (
-    <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
-    </svg>
-);
-const IconActivity = ({ cls = '' }) => (
-    <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="10" />
-    </svg>
-);
 
 const IconShare = ({ cls = '' }) => (
     <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -60,7 +50,7 @@ const IconDraftSquare = ({ cls = '' }) => (
 );
 
 import { HeaderBar } from './HeaderBar';
-import { NotificationModal } from './NotificationModal';
+
 import { StopAutomationModal } from './StopAutomationModal';
 import { PipelineOverviewModal } from './PipelineOverviewModal';
 import { MessengerPopup } from './MessengerPopup';

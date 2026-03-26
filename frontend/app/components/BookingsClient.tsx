@@ -318,7 +318,6 @@ export function BookingsClient() {
 
             {/* ── MOBILE LAYOUT ── */}
             <div className="lg:hidden w-full h-full pb-10">
-                <MobileTopBar onMenuOpen={() => setMobileMenuOpen(true)} />
 
                 {/* Mobile menu overlay */}
                 {mobileMenuOpen && (

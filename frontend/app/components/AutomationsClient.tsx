@@ -205,7 +205,7 @@ function StepUseCase({
         {/* Action bar inside text area */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', borderTop: '1px solid #E2E8F0', paddingTop: '16px' }}>
           {/* Left Actions */}
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
             {isOptimized ? (
               <button onClick={handleUndo} style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'transparent', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '10px 16px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '13px', color: '#475569' }}>
                 <UndoIcon /> View Original
@@ -219,20 +219,20 @@ function StepUseCase({
           </div>
 
           {/* Right Actions */}
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0, flexWrap: 'nowrap', overflow: 'visible' }}>
             <button
               onClick={onStop}
-              style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', cursor: 'pointer', color: '#94A3B8' }}
+              style={{ width: '40px', height: '40px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', cursor: 'pointer', color: '#94A3B8' }}
             >
               <TrashIcon />
             </button>
-            <button style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '0 16px', height: '40px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '13px', color: '#1F2937' }}>
+            <button style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '0 16px', height: '40px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '13px', color: '#1F2937', whiteSpace: 'nowrap' }}>
               <PlayIcon /> Enable
             </button>
-            <button style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '0 16px', height: '40px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '13px', color: '#475569' }}>
+            <button style={{ flexShrink: 0, backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '0 16px', height: '40px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '13px', color: '#475569', whiteSpace: 'nowrap' }}>
               Cancel
             </button>
-            <button onClick={onSave} disabled={!useCase.trim()} style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#00C2FF', border: 'none', borderRadius: '12px', padding: '0 20px', height: '40px', cursor: !useCase.trim() ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#FFFFFF', opacity: !useCase.trim() ? 0.5 : 1 }}>
+            <button onClick={onSave} disabled={!useCase.trim()} style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, backgroundColor: '#00C2FF', border: 'none', borderRadius: '12px', padding: '0 20px', height: '40px', cursor: !useCase.trim() ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#FFFFFF', opacity: !useCase.trim() ? 0.5 : 1, whiteSpace: 'nowrap' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
               Save
             </button>

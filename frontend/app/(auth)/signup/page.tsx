@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { AuthHero } from '../AuthHero';
+import { OTPModal } from '../../components/OTPModal';
 import '../auth.css';
 
 export default function SignUpPage() {
@@ -11,8 +12,8 @@ export default function SignUpPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
+    const [showOTP, setShowOTP] = useState(false);
 
     const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,12 +34,37 @@ export default function SignUpPage() {
                 throw new Error(data.error || 'Failed to sign up');
             }
 
-            setSuccess(true);
+            // Auto-login success means we have access_token
+            if (data.access_token) {
+                localStorage.setItem('access_token', data.access_token);
+                // Dispatch OTP
+                const otpRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/auth/send-otp`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${data.access_token}`
+                    },
+                    body: JSON.stringify({ email, purpose: 'login' }),
+                });
+
+                if (!otpRes.ok) {
+                    const otpData = await otpRes.json();
+                    throw new Error(otpData.error || 'Failed to dispatch verification code');
+                }
+
+                setShowOTP(true);
+            } else {
+                throw new Error('No access token returned from signup');
+            }
         } catch (err: unknown) {
             setError((err as Error).message || 'Something went wrong. Please try again.');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleOTPSuccess = () => {
+        window.location.href = '/automations';
     };
 
     return (
@@ -56,18 +82,11 @@ export default function SignUpPage() {
                         Create an account to access the platform.
                     </p>
 
-                    {success && (
-                        <div className="auth-alert auth-alert-success">
-                            ✅ Your account has been created! <Link href="/login" style={{ fontWeight: 'bold' }}>Click here to log in</Link>.
-                        </div>
-                    )}
-
                     {error && (
                         <div className="auth-alert auth-alert-error">⚠️ {error}</div>
                     )}
 
-                    {!success && (
-                        <form onSubmit={handleSignUp}>
+                    <form onSubmit={handleSignUp}>
                             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
                                 <div className="auth-field">
                                     <label className="auth-label" htmlFor="first-name">First Name</label>
@@ -139,7 +158,6 @@ export default function SignUpPage() {
                                 {loading ? '⏳ Creating account...' : 'Create Account'}
                             </button>
                         </form>
-                    )}
 
                     <div className="auth-divider">OR</div>
 
@@ -177,6 +195,15 @@ export default function SignUpPage() {
                     <a href="#" className="auth-footer-link">Global Network</a>
                 </div>
             </div>
+
+            {showOTP && (
+                <OTPModal 
+                    email={email} 
+                    purpose="login"
+                    onSuccess={handleOTPSuccess} 
+                    onCancel={() => setShowOTP(false)} 
+                />
+            )}
         </div>
     );
 }

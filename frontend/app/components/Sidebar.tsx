@@ -131,6 +131,13 @@ import { NotificationModal } from './NotificationModal';
 export function Sidebar() {
     const [isOpen, setIsOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+    const handleLogout = (e: React.MouseEvent) => {
+        e.preventDefault();
+        localStorage.removeItem('access_token');
+        window.location.href = '/login';
+    };
 
     // Prevent body scroll when mobile menu is open
     useEffect(() => {
@@ -171,10 +178,38 @@ export function Sidebar() {
                             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                         </svg>
                     </button>
-                    <Link href="/profile" onClick={() => setIsOpen(false)}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src="https://ui-avatars.com/api/?name=Alex+Developer&background=e0f2fe&color=0284c7&bold=true" alt="User Profile" className="w-8 h-8 rounded-full border border-slate-200 shadow-sm" />
-                    </Link>
+                    <div className="relative">
+                        <button onClick={() => { setIsOpen(false); setIsProfileOpen(!isProfileOpen); }} className="block focus:outline-none">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src="https://ui-avatars.com/api/?name=Alex+Developer&background=e0f2fe&color=0284c7&bold=true" alt="User Profile" className="w-8 h-8 rounded-full border border-slate-200 shadow-sm" />
+                        </button>
+                        {isProfileOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsProfileOpen(false)} />
+                                <div className="absolute top-[44px] right-0 z-50 w-[224px] bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(22,78,99,0.1)] p-1.5 flex flex-col gap-0.5 border border-slate-100">
+                                    <Link href="/settings" onClick={() => setIsProfileOpen(false)} className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 rounded-lg transition-colors group">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 group-hover:text-slate-600">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                                        </svg>
+                                        <span className="text-[13px] font-medium text-slate-600 group-hover:text-slate-800">Profile Settings</span>
+                                    </Link>
+                                    <Link href="/subscription" onClick={() => setIsProfileOpen(false)} className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 rounded-lg transition-colors group">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 group-hover:text-slate-600">
+                                            <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+                                        </svg>
+                                        <span className="text-[13px] font-medium text-slate-600 group-hover:text-slate-800">Billing</span>
+                                    </Link>
+                                    <div className="h-[1px] bg-slate-100 my-1 mx-2" />
+                                    <button onClick={handleLogout} className="flex items-center gap-2.5 px-3 py-2 hover:bg-red-50 rounded-lg transition-colors w-full text-left group">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
+                                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                                        </svg>
+                                        <span className="text-[13px] font-medium text-red-600">Logout</span>
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
             </header>
             
@@ -231,15 +266,41 @@ export function Sidebar() {
                 </nav>
 
                 {/* User profile */}
-                <div className="px-4 py-4 mt-auto border-t border-slate-100 lg:border-t-0">
-                    <Link href="/profile" onClick={() => setIsOpen(false)} className="flex items-center gap-3 hover:bg-slate-50 p-2 -mx-2 rounded-xl transition-colors cursor-pointer w-full text-left">
+                <div className="px-4 py-4 mt-auto border-t border-slate-100 lg:border-t-0 relative">
+                    <button onClick={() => { setIsOpen(false); setIsProfileOpen(!isProfileOpen); }} className="flex items-center gap-3 hover:bg-slate-50 p-2 -mx-2 rounded-xl transition-colors cursor-pointer w-full text-left focus:outline-none">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src="https://ui-avatars.com/api/?name=Alex+Developer&background=e0f2fe&color=0284c7&bold=true" alt="User Profile" className="w-8 h-8 rounded-full border border-slate-200 shadow-sm shrink-0" />
                         <div className="min-w-0 flex-1">
                             <p className="text-[13px] font-semibold text-slate-800 truncate">Alex Developer</p>
                             <p className="text-[11px] text-slate-400 truncate">Pro Plan</p>
                         </div>
-                    </Link>
+                    </button>
+                    {isProfileOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setIsProfileOpen(false)} />
+                            <div className="absolute bottom-[72px] left-[16px] z-50 w-[224px] bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(22,78,99,0.1)] p-1.5 flex flex-col gap-0.5 border border-slate-100">
+                                <Link href="/settings" onClick={() => setIsProfileOpen(false)} className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 rounded-lg transition-colors group">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 group-hover:text-slate-600">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                                    </svg>
+                                    <span className="text-[13px] font-medium text-slate-600 group-hover:text-slate-800">Profile Settings</span>
+                                </Link>
+                                <Link href="/subscription" onClick={() => setIsProfileOpen(false)} className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 rounded-lg transition-colors group">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 group-hover:text-slate-600">
+                                        <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+                                    </svg>
+                                    <span className="text-[13px] font-medium text-slate-600 group-hover:text-slate-800">Billing</span>
+                                </Link>
+                                <div className="h-[1px] bg-slate-100 my-1 mx-2" />
+                                <button onClick={handleLogout} className="flex items-center gap-2.5 px-3 py-2 hover:bg-red-50 rounded-lg transition-colors w-full text-left group">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
+                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                                    </svg>
+                                    <span className="text-[13px] font-medium text-red-600">Logout</span>
+                                </button>
+                            </div>
+                        </>
+                    )}
                 </div>
             </aside>
         </>

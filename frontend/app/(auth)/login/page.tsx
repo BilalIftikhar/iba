@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { AuthHero } from '../AuthHero';
+import { OTPModal } from '../../components/OTPModal';
 import '../auth.css';
 
 export default function LoginPage() {
@@ -10,6 +11,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showOTP, setShowOTP] = useState(false);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,12 +35,32 @@ export default function LoginPage() {
 
             // Save the fast token to localStorage for Authorization headers
             localStorage.setItem('access_token', data.access_token);
-            window.location.href = '/automations'; // Or dashboard root
+            
+            // Dispatch OTP
+            const otpRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/auth/send-otp`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${data.access_token}`
+                },
+                body: JSON.stringify({ email, purpose: 'login' }),
+            });
+
+            if (!otpRes.ok) {
+                const otpData = await otpRes.json();
+                throw new Error(otpData.error || 'Failed to dispatch verification code');
+            }
+
+            setShowOTP(true);
         } catch (err: unknown) {
             setError((err as Error).message || 'Something went wrong. Please try again.');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleOTPSuccess = () => {
+        window.location.href = '/automations';
     };
 
     return (
@@ -134,6 +156,15 @@ export default function LoginPage() {
                     <a href="#" className="auth-footer-link">Global Network</a>
                 </div>
             </div>
+
+            {showOTP && (
+                <OTPModal 
+                    email={email} 
+                    purpose="login"
+                    onSuccess={handleOTPSuccess} 
+                    onCancel={() => setShowOTP(false)} 
+                />
+            )}
         </div>
     );
 }

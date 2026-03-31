@@ -38,7 +38,23 @@ authRouter.post('/signup', async (req, res) => {
             }
         });
 
-        return res.status(201).json({ success: true, message: 'User created' });
+        // Auto-login to allow protected OTP fetch
+        const access_token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '15m' });
+        const refresh_token = jwt.sign({ userId: user.id }, REFRESH_SECRET, { expiresIn: '30d' });
+
+        res.cookie('refresh_token', refresh_token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+        });
+
+        return res.status(201).json({ 
+            success: true, 
+            message: 'User created',
+            access_token,
+            user: { id: user.id, email: user.email, first_name: user.first_name }
+        });
     } catch (error: any) {
         console.error('[POST /signup]', error);
         return res.status(500).json({ error: 'Failed to sign up' });

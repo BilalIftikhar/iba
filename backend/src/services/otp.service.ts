@@ -90,17 +90,24 @@ export const sendOtp = async (
     });
 
     // 6. Send the plain code via Resend
+    console.log(`\n\n[DEV MODE] 🔐 OTP CODE GENERATED FOR ${email}: ${rawCode}\n\n`);
+
     try {
-        await resend.emails.send({
+        const { data, error } = await resend.emails.send({
             from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
             to: email,
             subject: 'Your IBA Dashboard Verification Code',
             text: `Your verification code is ${rawCode}. It will expire in ${OTP_VALIDITY_MINUTES} minutes.`,
             html: `<p>Your verification code is <strong>${rawCode}</strong>. It will expire in ${OTP_VALIDITY_MINUTES} minutes.</p>`,
         });
+
+        if (error) {
+            console.error('Resend API Error:', error);
+            throw new Error(`Resend Error: ${error.message}`);
+        }
     } catch (error: any) {
-        console.error('Resend failed to send email:', error);
-        throw new Error('Failed to send OTP email via Resend');
+        console.error('Failed to send email via Resend SDK:', error);
+        throw new Error(error.message || 'Failed to send OTP email via Resend SDK');
     }
 };
 

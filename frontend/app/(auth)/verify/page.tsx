@@ -1,17 +1,22 @@
 'use client';
 
-import { useState, useRef, KeyboardEvent } from 'react';
+import { useState, useRef, KeyboardEvent, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AuthHero } from '../AuthHero';
 import '../auth.css';
 
 const CODE_LENGTH = 6;
 
-export default function VerifyPage() {
+function VerifyContent() {
+    const searchParams = useSearchParams();
+    const email = searchParams.get('email') || '';
+
     const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
+    const [resendMessage, setResendMessage] = useState('');
     const inputs = useRef<(HTMLInputElement | null)[]>([]);
 
     const handleChange = (i: number, val: string) => {
@@ -44,6 +49,13 @@ export default function VerifyPage() {
         inputs.current[Math.min(pasted.length, CODE_LENGTH - 1)]?.focus();
     };
 
+    const handleClear = () => {
+        setCode(Array(CODE_LENGTH).fill(''));
+        setError('');
+        setResendMessage('');
+        inputs.current[0]?.focus();
+    };
+
     const fullCode = code.join('');
     const isComplete = fullCode.length === CODE_LENGTH;
 
@@ -52,16 +64,56 @@ export default function VerifyPage() {
         if (!isComplete) return;
         setLoading(true);
         setError('');
+        setResendMessage('');
         try {
-            // TODO: POST /api/v1/auth/verify-otp { code: fullCode, purpose: 'login' }
-            await new Promise((r) => setTimeout(r, 1000));
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/auth/verify-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code: fullCode, purpose: 'login' })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Invalid code. Please check and try again.');
+
+            if (data.access_token) {
+                localStorage.setItem('access_token', data.access_token);
+            }
+
             setSuccess(true);
-        } catch {
-            setError('Invalid code. Please check and try again.');
+            setTimeout(() => {
+                window.location.href = '/automations';
+            }, 1000);
+        } catch (err: unknown) {
+            setError((err as Error).message);
             setCode(Array(CODE_LENGTH).fill(''));
             inputs.current[0]?.focus();
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleResend = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        setError('');
+        setResendMessage('');
+        if (!email) {
+            setError('Missing email address. Cannot resend.');
+            return;
+        }
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/auth/send-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, purpose: 'login' })
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to resend code');
+            }
+            setResendMessage('A new verification code has been sent.');
+            setCode(Array(CODE_LENGTH).fill(''));
+            inputs.current[0]?.focus();
+        } catch (err: unknown) {
+            setError((err as Error).message);
         }
     };
 
@@ -77,7 +129,7 @@ export default function VerifyPage() {
                 <div className="auth-form-wrap">
                     <h2 className="auth-form-title">Enter Code</h2>
                     <p className="auth-form-subtitle">
-                        We&apos;ve sent a 6-digit verification code to your email. It expires in 10 minutes.
+                        We&apos;ve sent a 6-digit verification code to {email || 'your email'}. It expires in 10 minutes.
                     </p>
 
                     {success && (
@@ -88,6 +140,10 @@ export default function VerifyPage() {
 
                     {error && (
                         <div className="auth-alert auth-alert-error">⚠️ {error}</div>
+                    )}
+
+                    {resendMessage && !error && !success && (
+                        <div className="auth-alert auth-alert-success">ℹ️ {resendMessage}</div>
                     )}
 
                     {!success && (
@@ -113,17 +169,27 @@ export default function VerifyPage() {
                                 ))}
                             </div>
 
-                            <button
-                                type="submit"
-                                className="auth-btn-primary"
-                                disabled={!isComplete || loading}
-                            >
-                                {loading ? '⏳ Verifying…' : 'Verify & Sign In →'}
-                            </button>
+                            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                                <button
+                                    type="button"
+                                    onClick={handleClear}
+                                    style={{ flex: 1, padding: '12px', backgroundColor: '#F1F5F9', border: 'none', borderRadius: '8px', color: '#475569', fontWeight: 600, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
+                                >
+                                    Clear
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="auth-btn-primary"
+                                    disabled={!isComplete || loading}
+                                    style={{ flex: 2, marginTop: 0 }}
+                                >
+                                    {loading ? '⏳ Verifying…' : 'Verify & Sign In →'}
+                                </button>
+                            </div>
 
-                            <p className="auth-helper" style={{ marginTop: 20 }}>
+                            <p className="auth-helper" style={{ marginTop: 24, textAlign: 'center' }}>
                                 Didn&apos;t receive it?{' '}
-                                <a href="#" className="auth-link" onClick={(e) => { e.preventDefault(); /* resend */ }}>
+                                <a href="#" className="auth-link" onClick={handleResend}>
                                     Resend code
                                 </a>
                             </p>
@@ -145,5 +211,13 @@ export default function VerifyPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function VerifyPage() {
+    return (
+        <Suspense fallback={<div className="auth-page"><div className="auth-panel" style={{margin:'auto', padding:'40px'}}>Loading...</div></div>}>
+            <VerifyContent />
+        </Suspense>
     );
 }

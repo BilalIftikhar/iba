@@ -5,14 +5,28 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v
 
 type FetchOptions = RequestInit & { next?: { revalidate?: number | false } };
 
-async function apiFetch<T>(path: string, options?: FetchOptions): Promise<T> {
+export async function apiFetch<T>(path: string, options?: FetchOptions): Promise<T> {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+
     const res = await fetch(`${API_BASE}${path}`, {
+        credentials: 'include',
         ...options,
         headers: {
             'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
             ...(options?.headers ?? {}),
         },
     });
+
+    if (res.status === 401) {
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('access_token');
+            window.location.href = '/login';
+        } else {
+            console.error('[API] 401 Unauthorized during server-side fetch.');
+        }
+        throw new Error('[API] 401 Unauthorized');
+    }
 
     if (!res.ok) {
         const body = await res.text().catch(() => res.statusText);
@@ -21,6 +35,13 @@ async function apiFetch<T>(path: string, options?: FetchOptions): Promise<T> {
 
     const json = await res.json();
     return json.data ?? json;
+}
+
+export async function createBooking<T = unknown>(data: Record<string, unknown>): Promise<T> {
+    return apiFetch<T>('/bookings', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
 }
 
 // ── Stats endpoints ─────────────────────────────────────────

@@ -16,8 +16,73 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { verifyWebhookSecret } from '../services/n8n.service';
 import { io } from '../index';
+import { Webhook } from 'svix';
+import { Resend } from 'resend';
 
 export const webhooksRouter = Router();
+
+const resend = new Resend(process.env.RESEND_API_KEY || 're_NLE68m1D_GWWiqbAtAMZMZmA5TXgd8BbA');
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/webhooks/clerk
+// Intercept Clerk events securely using Svix
+// Expected to be configured in Clerk Dashboard -> Webhooks
+// ─────────────────────────────────────────────────────────────
+webhooksRouter.post('/clerk', async (req: Request, res: Response) => {
+    const SIGNATURE_SECRET = process.env.CLERK_WEBHOOK_SECRET;
+
+    if (!SIGNATURE_SECRET) {
+        console.warn('[webhook] CLERK_WEBHOOK_SECRET not defined');
+        return res.status(400).json({ error: 'Webhook secret missing' });
+    }
+
+    const headers = req.headers;
+    const payload = JSON.stringify(req.body);
+
+    const svix_id = headers['svix-id'] as string;
+    const svix_timestamp = headers['svix-timestamp'] as string;
+    const svix_signature = headers['svix-signature'] as string;
+
+    if (!svix_id || !svix_timestamp || !svix_signature) {
+        return res.status(400).json({ error: 'Missing Svix headers' });
+    }
+
+    const wh = new Webhook(SIGNATURE_SECRET);
+    let evt: any;
+
+    try {
+        evt = wh.verify(payload, {
+            'svix-id': svix_id,
+            'svix-timestamp': svix_timestamp,
+            'svix-signature': svix_signature,
+        });
+    } catch (err) {
+        console.error('[webhook] Clerk Svix verification failed:', err);
+        return res.status(400).json({ error: 'Invalid signature' });
+    }
+
+    const { type, data } = evt;
+
+    if (type === 'email.created') {
+        const { to_email_address, subject, body, otp_code } = data;
+        const recipient = to_email_address || data.email_address;
+        
+        try {
+            await resend.emails.send({
+                from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+                to: recipient,
+                subject: subject || 'Verify your login',
+                html: body || `<p>Your verification code is: <strong>${otp_code}</strong></p>`,
+            });
+            console.log(`[webhook] Dispatched Clerk verification code to ${recipient} via Resend.`);
+        } catch (emailErr) {
+            console.error('[webhook] Resend dispatch failed:', emailErr);
+            return res.status(500).json({ error: 'Failed to dispatch email' });
+        }
+    }
+
+    return res.status(200).json({ success: true });
+});
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/webhooks/n8n/execution-complete

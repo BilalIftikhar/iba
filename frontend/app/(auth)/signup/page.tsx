@@ -6,22 +6,36 @@ import { AuthHero } from '../AuthHero';
 import '../auth.css';
 
 export default function SignUpPage() {
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [sent, setSent] = useState(false);
+    const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
 
-    const handleMagicLink = async (e: React.FormEvent) => {
+    const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!email) return;
+        if (!email || !password || !firstName || !lastName) return;
         setLoading(true);
         setError('');
+        
         try {
-            // TODO: wire to POST /api/v1/auth/send-otp
-            await new Promise((r) => setTimeout(r, 1200)); // simulate
-            setSent(true);
-        } catch {
-            setError('Something went wrong. Please try again.');
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/auth/signup`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName }),
+            });
+
+            const data = await res.json();
+            
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to sign up');
+            }
+
+            setSuccess(true);
+        } catch (err: unknown) {
+            setError((err as Error).message || 'Something went wrong. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -29,36 +43,61 @@ export default function SignUpPage() {
 
     return (
         <div className="auth-page">
-            {/* ── Left hero ── */}
             <AuthHero
                 title="Mastering"
                 titleAccent="Automation"
                 subtitle="Streamline your industrial workflows with our next-generation IBA dashboard."
             />
 
-            {/* ── Right form ── */}
             <div className="auth-panel">
                 <div className="auth-form-wrap">
                     <h2 className="auth-form-title">Sign Up</h2>
                     <p className="auth-form-subtitle">
-                        Enter your email to effortlessly create an account with a magic link.
+                        Create an account to access the platform.
                     </p>
 
-                    {/* Success state */}
-                    {sent && (
+                    {success && (
                         <div className="auth-alert auth-alert-success">
-                            ✅ A login link has been sent to <strong>{email}</strong>
+                            ✅ Your account has been created! <Link href="/login" style={{ fontWeight: 'bold' }}>Click here to log in</Link>.
                         </div>
                     )}
 
-                    {/* Error state */}
                     {error && (
                         <div className="auth-alert auth-alert-error">⚠️ {error}</div>
                     )}
 
-                    {!sent && (
-                        <form onSubmit={handleMagicLink}>
-                            <div className="auth-field">
+                    {!success && (
+                        <form onSubmit={handleSignUp}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
+                                <div className="auth-field">
+                                    <label className="auth-label" htmlFor="first-name">First Name</label>
+                                    <div className="auth-input-wrap">
+                                        <input
+                                            id="first-name"
+                                            className="auth-input"
+                                            placeholder="Jane"
+                                            value={firstName}
+                                            onChange={(e) => setFirstName(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <div className="auth-field">
+                                    <label className="auth-label" htmlFor="last-name">Last Name</label>
+                                    <div className="auth-input-wrap">
+                                        <input
+                                            id="last-name"
+                                            className="auth-input"
+                                            placeholder="Doe"
+                                            value={lastName}
+                                            onChange={(e) => setLastName(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="auth-field" style={{ marginTop: 16 }}>
                                 <label className="auth-label" htmlFor="signup-email">Email Address</label>
                                 <div className="auth-input-wrap">
                                     <span className="auth-input-icon">✉️</span>
@@ -70,8 +109,23 @@ export default function SignUpPage() {
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         required
-                                        autoComplete="email"
-                                        autoFocus
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="auth-field" style={{ marginTop: 16 }}>
+                                <label className="auth-label" htmlFor="signup-password">Password</label>
+                                <div className="auth-input-wrap">
+                                    <span className="auth-input-icon">🔓</span>
+                                    <input
+                                        id="signup-password"
+                                        type="password"
+                                        className="auth-input"
+                                        placeholder="••••••••"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        required
+                                        minLength={8}
                                     />
                                 </div>
                             </div>
@@ -79,19 +133,11 @@ export default function SignUpPage() {
                             <button
                                 type="submit"
                                 className="auth-btn-primary"
-                                disabled={loading || !email}
+                                disabled={loading || !email || !password || !firstName || !lastName}
+                                style={{ marginTop: 24 }}
                             >
-                                {loading ? (
-                                    <>
-                                        <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span>
-                                        Sending…
-                                    </>
-                                ) : (
-                                    <>Generate Magic Link 🪄</>
-                                )}
+                                {loading ? '⏳ Creating account...' : 'Create Account'}
                             </button>
-
-                            <p className="auth-hint">A login link will be sent to your email.</p>
                         </form>
                     )}
 

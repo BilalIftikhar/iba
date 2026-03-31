@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
-import sgMail from '@sendgrid/mail';
+import { Resend } from 'resend';
 import { prisma } from '../lib/prisma';
 import { OtpPurpose } from '@prisma/client';
 
@@ -10,8 +10,8 @@ const OTP_DIGITS = 6;
 /** Short-lived view_token TTL: 5 minutes, per spec §7.1 */
 const VIEW_TOKEN_TTL_MS = 5 * 60 * 1_000;
 
-// Initialize SendGrid
-sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
+// Initialize Resend
+const resend = new Resend(process.env.RESEND_API_KEY || 're_NLE68m1D_GWWiqbAtAMZMZmA5TXgd8BbA');
 
 // ─────────────────────────────────────────────────────────────
 // Internal helpers for view_token
@@ -56,7 +56,7 @@ const signViewToken = (payload: ViewTokenPayload): string => {
 
 /**
  * Generates a 6-digit OTP, hashes it, stores it in the database,
- * and sends the plain code via SendGrid to the provided email.
+ * and sends the plain code via Resend to the provided email.
  */
 export const sendOtp = async (
     userId: string,
@@ -89,20 +89,18 @@ export const sendOtp = async (
         },
     });
 
-    // 6. Send the plain code via SendGrid
-    const msg = {
-        to: email,
-        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@iba-dashboard.com',
-        subject: 'Your IBA Dashboard Verification Code',
-        text: `Your verification code is ${rawCode}. It will expire in ${OTP_VALIDITY_MINUTES} minutes.`,
-        html: `<p>Your verification code is <strong>${rawCode}</strong>. It will expire in ${OTP_VALIDITY_MINUTES} minutes.</p>`,
-    };
-
+    // 6. Send the plain code via Resend
     try {
-        await sgMail.send(msg);
+        await resend.emails.send({
+            from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+            to: email,
+            subject: 'Your IBA Dashboard Verification Code',
+            text: `Your verification code is ${rawCode}. It will expire in ${OTP_VALIDITY_MINUTES} minutes.`,
+            html: `<p>Your verification code is <strong>${rawCode}</strong>. It will expire in ${OTP_VALIDITY_MINUTES} minutes.</p>`,
+        });
     } catch (error: any) {
-        console.error('SendGrid failed to send email:', error);
-        throw new Error('Failed to send OTP email via SendGrid');
+        console.error('Resend failed to send email:', error);
+        throw new Error('Failed to send OTP email via Resend');
     }
 };
 

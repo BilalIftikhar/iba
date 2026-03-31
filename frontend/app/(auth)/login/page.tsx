@@ -7,21 +7,35 @@ import '../auth.css';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [sent, setSent] = useState(false);
     const [error, setError] = useState('');
 
-    const handleMagicLink = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!email) return;
+        if (!email || !password) return;
         setLoading(true);
         setError('');
+        
         try {
-            // TODO: POST /api/v1/auth/send-otp  { email, purpose: 'login' }
-            await new Promise((r) => setTimeout(r, 1200));
-            setSent(true);
-        } catch {
-            setError('Something went wrong. Please try again.');
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ email, password }),
+            });
+
+            const data = await res.json();
+            
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to login');
+            }
+
+            // Save the fast token to localStorage for Authorization headers
+            localStorage.setItem('access_token', data.access_token);
+            window.location.href = '/automations'; // Or dashboard root
+        } catch (err: unknown) {
+            setError((err as Error).message || 'Something went wrong. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -39,56 +53,61 @@ export default function LoginPage() {
                 <div className="auth-form-wrap">
                     <h2 className="auth-form-title">Sign In</h2>
                     <p className="auth-form-subtitle">
-                        Enter your email to receive a magic link and sign in instantly.
+                        Enter your email and password to sign in.
                     </p>
-
-                    {sent && (
-                        <div className="auth-alert auth-alert-success">
-                            ✅ Check your inbox — a login link has been sent to <strong>{email}</strong>
-                        </div>
-                    )}
 
                     {error && (
                         <div className="auth-alert auth-alert-error">⚠️ {error}</div>
                     )}
 
-                    {!sent && (
-                        <form onSubmit={handleMagicLink}>
-                            <div className="auth-field">
-                                <label className="auth-label" htmlFor="login-email">Email Address</label>
-                                <div className="auth-input-wrap">
-                                    <span className="auth-input-icon">✉️</span>
-                                    <input
-                                        id="login-email"
-                                        type="email"
-                                        className="auth-input"
-                                        placeholder="name@company.com"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        required
-                                        autoComplete="email"
-                                        autoFocus
-                                    />
-                                </div>
+                    <form onSubmit={handleLogin}>
+                        <div className="auth-field">
+                            <label className="auth-label" htmlFor="login-email">Email Address</label>
+                            <div className="auth-input-wrap">
+                                <span className="auth-input-icon">✉️</span>
+                                <input
+                                    id="login-email"
+                                    type="email"
+                                    className="auth-input"
+                                    placeholder="name@company.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                    autoComplete="email"
+                                    autoFocus
+                                />
                             </div>
+                        </div>
 
-                            <button
-                                type="submit"
-                                className="auth-btn-primary"
-                                disabled={loading || !email}
-                            >
-                                {loading ? '⏳ Sending…' : 'Generate Magic Link 🪄'}
-                            </button>
+                        <div className="auth-field" style={{ marginTop: 16 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                <label className="auth-label" htmlFor="login-password">Password</label>
+                                <a href="#" style={{ fontSize: 12, color: '#00C2FF', textDecoration: 'none' }}>Forgot password?</a>
+                            </div>
+                            <div className="auth-input-wrap">
+                                <span className="auth-input-icon">🔓</span>
+                                <input
+                                    id="login-password"
+                                    type="password"
+                                    className="auth-input"
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    autoComplete="current-password"
+                                />
+                            </div>
+                        </div>
 
-                            <p className="auth-hint">A one-time login link will be sent to your email.</p>
-                        </form>
-                    )}
-
-                    {sent && (
-                        <Link href="/verify" className="auth-btn-primary" style={{ textDecoration: 'none', marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                            Enter the code I received →
-                        </Link>
-                    )}
+                        <button
+                            type="submit"
+                            className="auth-btn-primary"
+                            disabled={loading || !email || !password}
+                            style={{ marginTop: 24 }}
+                        >
+                            {loading ? '⏳ Signing in...' : 'Sign In'}
+                        </button>
+                    </form>
 
                     <div className="auth-divider">OR</div>
 

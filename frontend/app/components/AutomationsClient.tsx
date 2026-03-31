@@ -142,6 +142,106 @@ const css = `
     .aauto-desktop-progress { display: none; }
     .aauto-layout-wrapper { padding: 0 16px; }
   }
+
+  .aauto-grid-2 {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  .aauto-grid-65-35 {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  .aauto-grid-review {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .aauto-header-flex {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .aauto-templates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .aauto-btn-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  @media (min-width: 768px) {
+    .aauto-grid-2 {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .aauto-grid-65-35 {
+      display: grid;
+      grid-template-columns: minmax(0, 6.5fr) minmax(0, 3.5fr);
+    }
+    .aauto-grid-review {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+    }
+    .aauto-btn-right {
+        flex-wrap: nowrap;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .aauto-header-flex {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .aauto-templates-grid {
+      grid-template-columns: 1fr;
+    }
+    .aauto-action-bar {
+      justify-content: center !important;
+    }
+    .aauto-btn-right {
+      width: 100%;
+      flex-wrap: nowrap !important;
+      gap: 4px !important;
+      justify-content: center !important;
+    }
+    .aauto-btn-right button {
+      height: 36px !important;
+      padding: 0 6px !important;
+      font-size: 11px !important;
+      border-radius: 8px !important;
+    }
+    .aauto-btn-right button:first-child {
+      flex: 0 0 36px !important;
+      width: 36px !important;
+      padding: 0 !important;
+    }
+    .aauto-categories-scroll {
+      flex-wrap: nowrap !important;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; /* Firefox */
+    }
+    .aauto-categories-scroll::-webkit-scrollbar {
+      display: none; /* Chrome/Safari */
+    }
+    .aauto-categories-scroll button {
+      white-space: nowrap !important;
+      font-size: 11px !important;
+      padding: 4px 12px !important;
+    }
+  }
 `;
 
 // ─── Step 1: Use Case ────────────────────────────────────────────────────────
@@ -203,7 +303,7 @@ function StepUseCase({
         </div>
 
         {/* Action bar inside text area */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', borderTop: '1px solid #E2E8F0', paddingTop: '16px' }}>
+        <div className="aauto-action-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', borderTop: '1px solid #E2E8F0', paddingTop: '16px' }}>
           {/* Left Actions */}
           <div style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
             {isOptimized ? (
@@ -219,7 +319,7 @@ function StepUseCase({
           </div>
 
           {/* Right Actions */}
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0, flexWrap: 'nowrap', overflow: 'visible' }}>
+          <div className="aauto-btn-right">
             <button
               onClick={onStop}
               style={{ width: '40px', height: '40px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', cursor: 'pointer', color: '#94A3B8' }}
@@ -251,7 +351,7 @@ function StepUseCase({
               Select a starting point and customize it to your needs
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div className="aauto-categories-scroll" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {CATEGORIES.map(cat => (
               <button key={cat} onClick={() => setActiveCategory(cat)}
                 style={{ backgroundColor: activeCategory === cat ? '#00C2FF' : '#FFFFFF', border: activeCategory === cat ? 'none' : '1px solid #E2E8F0', borderRadius: '20px', padding: '6px 16px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', color: activeCategory === cat ? '#FFFFFF' : '#64748B', transition: 'all 0.2s', boxShadow: activeCategory === cat ? '0 2px 4px rgba(0, 194, 255, 0.2)' : 'none' }}>
@@ -261,7 +361,7 @@ function StepUseCase({
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+        <div className="aauto-templates-grid">
           {filtered.map(t => (
             <div key={t.id} onClick={() => setUseCase(t.title + ': ' + t.description)} style={{ backgroundColor: '#F8FAFC', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '24px', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
@@ -320,21 +420,26 @@ function StepUseCase({
 // ─── Step 2: Define Details ────────────────────────────────────────────────────
 function StepDefineDetails({
   onBack,
-  onNext
+  onNext,
+  problem, setProblem,
+  outcome, setOutcome,
+  tools, setTools,
+  frequency, setFrequency,
+  dailyReport, setDailyReport,
+  whatsappAlerts, setWhatsappAlerts,
+  weeklyReport, setWeeklyReport
 }: {
   onBack: () => void;
   onNext: () => void;
+  problem: string; setProblem: (v: string) => void;
+  outcome: string; setOutcome: (v: string) => void;
+  tools: string; setTools: (v: string) => void;
+  frequency: string; setFrequency: (v: string) => void;
+  dailyReport: boolean; setDailyReport: (v: boolean) => void;
+  whatsappAlerts: boolean; setWhatsappAlerts: (v: boolean) => void;
+  weeklyReport: boolean; setWeeklyReport: (v: boolean) => void;
 }) {
-  const [problem, setProblem] = useState('');
-  const [outcome, setOutcome] = useState('');
-  const [tools, setTools] = useState('');
-
-  const [frequency, setFrequency] = useState('Daily');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  const [dailyReport, setDailyReport] = useState(true);
-  const [whatsappAlerts, setWhatsappAlerts] = useState(true);
-  const [weeklyReport, setWeeklyReport] = useState(false);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
@@ -351,20 +456,16 @@ function StepDefineDetails({
 
         {/* Main 2-column row for Problem and Outcome */}
         {/* Main 2-column row for Problem and Outcome */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '32px' }}>
+        <div className="aauto-grid-2">
           {/* The Problem */}
           <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div className="aauto-header-flex">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ padding: '6px', borderRadius: '8px', backgroundColor: '#E0FCF9', color: '#00C2FF', display: 'flex' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                 </div>
                 <h3 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '16px', color: '#1E293B', margin: 0 }}>The Problem</h3>
               </div>
-              <OptimizePromptButton
-                onOptimize={() => setProblem(p => p + ' (AI-enhanced: Focus on measurable efficiency loss and root cause of the bottleneck.)')}
-                disabled={!problem.trim()}
-              />
             </div>
             <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '13px', color: '#64748B', margin: '0 0 20px 0' }}>
               What challenges are you facing?
@@ -375,21 +476,23 @@ function StepDefineDetails({
               placeholder="e.g. Manually exporting leads from LinkedIn is taking 5 hours every week and leading to data entry errors."
               style={{ width: '100%', minHeight: '100px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#334155', resize: 'vertical', outline: 'none', flex: 1 }}
             />
+            <div className="aauto-action-bar" style={{ marginTop: '16px', display: 'flex' }}>
+              <OptimizePromptButton
+                onOptimize={() => setProblem(problem + ' (AI-enhanced: Focus on measurable efficiency loss and root cause of the bottleneck.)')}
+                disabled={!problem.trim()}
+              />
+            </div>
           </div>
 
           {/* The Outcome */}
           <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div className="aauto-header-flex">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ padding: '6px', borderRadius: '8px', backgroundColor: '#E0FCF9', color: '#00C2FF', display: 'flex' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
                 </div>
                 <h3 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '16px', color: '#1E293B', margin: 0 }}>The Outcome</h3>
               </div>
-              <OptimizePromptButton
-                onOptimize={() => setOutcome(o => o + ' (AI-enhanced: Add measurable KPIs and a clear success metric for this outcome.)')}
-                disabled={!outcome.trim()}
-              />
             </div>
             <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '13px', color: '#64748B', margin: '0 0 20px 0' }}>
               What results do you expect?
@@ -400,15 +503,21 @@ function StepDefineDetails({
               placeholder="e.g. Automatically sync new LinkedIn leads to my CRM every morning and send a Slack notification to the sales team."
               style={{ width: '100%', minHeight: '100px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#334155', resize: 'vertical', outline: 'none', flex: 1 }}
             />
+            <div className="aauto-action-bar" style={{ marginTop: '16px', display: 'flex' }}>
+              <OptimizePromptButton
+                onOptimize={() => setOutcome(outcome + ' (AI-enhanced: Add measurable KPIs and a clear success metric for this outcome.)')}
+                disabled={!outcome.trim()}
+              />
+            </div>
           </div>
         </div>
 
         {/* Bottom row: Tools & Customization side-by-side */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 65fr) minmax(0, 35fr)', gap: '32px' }}>
+        <div className="aauto-grid-65-35">
 
           {/* Tools & Software */}
           <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div className="aauto-header-flex">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ padding: '6px', borderRadius: '8px', backgroundColor: '#E0FCF9', color: '#00C2FF', display: 'flex' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
@@ -417,10 +526,6 @@ function StepDefineDetails({
                   Tools & Software (Optional)
                 </h3>
               </div>
-              <OptimizePromptButton
-                onOptimize={() => setTools(t => t + ' (AI-enhanced: Consider adding Zapier or Make.com as middleware for broader compatibility.)')}
-                disabled={false}
-              />
             </div>
             <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '13px', color: '#64748B', margin: '0 0 20px 0' }}>
               List the apps you want the AI to interact with.
@@ -432,6 +537,12 @@ function StepDefineDetails({
               placeholder="e.g. LinkedIn Sales Navigator, Salesforce CRM, Slack, and Gmail."
               style={{ width: '100%', minHeight: '160px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#334155', resize: 'vertical', outline: 'none', flex: 1 }}
             />
+            <div className="aauto-action-bar" style={{ marginTop: '16px', display: 'flex' }}>
+              <OptimizePromptButton
+                onOptimize={() => setTools(tools + ' (AI-enhanced: Consider adding Zapier or Make.com as middleware for broader compatibility.)')}
+                disabled={false}
+              />
+            </div>
           </div>
 
           {/* Customization Options */}
@@ -521,21 +632,21 @@ function StepDefineDetails({
         </div>
 
         {/* Footer actions Box */}
-        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
-          <div>
+        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginTop: '8px' }}>
+          <div style={{ minWidth: '200px', flex: '1 1 auto' }}>
             <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '16px', color: '#1E293B', margin: '0 0 4px 0' }}>Ready to review?</h4>
             <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '13px', color: '#64748B', margin: 0 }}>Step 2 complete. Next, we will generate your workflow structure.</p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: '1 1 auto' }}>
             <button
               onClick={onBack}
-              style={{ backgroundColor: '#FFFFFF', border: '1px solid #64748B', borderRadius: '8px', padding: '12px 24px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '13px', color: '#1E293B', cursor: 'pointer' }}
+              style={{ flex: '1 1 auto', minWidth: '120px', backgroundColor: '#FFFFFF', border: '1px solid #64748B', borderRadius: '8px', padding: '12px 24px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '13px', color: '#1E293B', cursor: 'pointer', textAlign: 'center' }}
             >
               Save as Draft
             </button>
             <button
               onClick={onNext}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#00D1FF', border: 'none', borderRadius: '8px', padding: '12px 24px', fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '13px', color: '#1E293B', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(0, 194, 255, 0.2)' }}
+              style={{ flex: '1 1 auto', minWidth: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: '#00D1FF', border: 'none', borderRadius: '8px', padding: '12px 24px', fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '13px', color: '#1E293B', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(0, 194, 255, 0.2)' }}
             >
               Next: Review
               <ArrowRightIcon />
@@ -549,16 +660,26 @@ function StepDefineDetails({
 }
 
 // ─── Step 3: Confirm Review ──────────────────────────────────────────────────
-function StepConfirm({ onBack, onComplete }: { onBack: () => void; onComplete: () => void }) {
-  const [deploying, setDeploying] = useState(false);
-
-  const handleDeploy = () => {
-    setDeploying(true);
-    setTimeout(() => {
-      setDeploying(false);
-      onComplete();
-    }, 2000);
-  };
+function StepConfirm({
+  onBack,
+  onComplete,
+  deploying,
+  useCase,
+  problem,
+  outcome
+}: {
+  onBack: () => void;
+  onComplete: () => void;
+  deploying: boolean;
+  useCase: string;
+  problem: string;
+  outcome: string;
+  tools: string;
+  frequency: string;
+  dailyReport: boolean;
+  whatsappAlerts: boolean;
+  weeklyReport: boolean;
+}) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
@@ -571,7 +692,7 @@ function StepConfirm({ onBack, onComplete }: { onBack: () => void; onComplete: (
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: '24px' }}>
+      <div className="aauto-grid-review">
         {/* Left Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Summary Card */}
@@ -587,13 +708,13 @@ function StepConfirm({ onBack, onComplete }: { onBack: () => void; onComplete: (
               <div>
                 <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', margin: '0 0 8px' }}>AUTOMATION TITLE</p>
                 <div style={{ backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0', padding: '16px' }}>
-                  <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '14px', color: '#1E293B', margin: 0 }}>SmartCustomer-Support-L2-Automator</p>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '14px', color: '#1E293B', margin: 0 }}>Smart Automation</p>
                 </div>
               </div>
               <div>
                 <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', margin: '0 0 8px' }}>USE CASE</p>
                 <div style={{ backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0', padding: '16px' }}>
-                  <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', color: '#334155', margin: 0 }}>L2 Technical Support & Ticket Classification</p>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', color: '#334155', margin: 0 }}>{useCase || 'Not provided'}</p>
                 </div>
               </div>
             </div>
@@ -602,7 +723,7 @@ function StepConfirm({ onBack, onComplete }: { onBack: () => void; onComplete: (
               <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', margin: '0 0 8px' }}>PROBLEM BEING SOLVED</p>
               <div style={{ backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0', padding: '16px' }}>
                 <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', lineHeight: '1.6em', color: '#334155', margin: 0 }}>
-                  High volume of repetitive L2 technical tickets causing 24h+ response delays and burnout for the senior engineering team.
+                  {problem || 'Not provided'}
                 </p>
               </div>
             </div>
@@ -611,7 +732,7 @@ function StepConfirm({ onBack, onComplete }: { onBack: () => void; onComplete: (
               <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', margin: '0 0 8px' }}>DESIRED OUTCOME</p>
               <div style={{ backgroundColor: '#E0FCF9', borderRadius: '8px', border: '1px solid #CCFBF3', padding: '16px' }}>
                 <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', lineHeight: '1.6em', color: '#0F766E', margin: 0 }}>
-                  Reduce response time by 80% and automate initial triage for 65% of all incoming technical queries within the first 30 days.
+                  {outcome || 'Not provided'}
                 </p>
               </div>
             </div>
@@ -695,14 +816,14 @@ function StepConfirm({ onBack, onComplete }: { onBack: () => void; onComplete: (
       </div>
 
       {/* Footer Nav */}
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <button onClick={onBack} style={{ backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#1F2937' }}>
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <button onClick={onBack} style={{ flex: '1 1 auto', minWidth: '120px', justifyContent: 'center', backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#1F2937' }}>
           Save Draft
         </button>
-        <div className="hidden md:block text-[13px] text-[#64748B] font-medium">
+        <div className="hidden md:block text-[13px] text-[#64748B] font-medium text-center flex-1">
           <strong className="text-[#1F2937]">TIP:</strong> If you decided to get support, save as draft then you an start where you left
         </div>
-        <button onClick={handleDeploy} disabled={deploying} style={{ backgroundColor: '#00C2FF', borderRadius: '12px', border: 'none', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px', cursor: deploying ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#FFFFFF', opacity: deploying ? 0.7 : 1 }}>
+        <button onClick={onComplete} disabled={deploying} style={{ flex: '1 1 auto', minWidth: '120px', justifyContent: 'center', backgroundColor: '#00C2FF', borderRadius: '12px', border: 'none', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px', cursor: deploying ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#FFFFFF', opacity: deploying ? 0.7 : 1 }}>
           {deploying ? <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>Confirming...</> : 'Confirm Booking'}
         </button>
       </div>
@@ -721,10 +842,47 @@ export function AutomationsClient() {
   const [isStopModalOpen, setIsStopModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
+  const [problem, setProblem] = useState('');
+  const [outcome, setOutcome] = useState('');
+  const [tools, setTools] = useState('');
+  const [frequency, setFrequency] = useState('Daily');
+  const [dailyReport, setDailyReport] = useState(true);
+  const [whatsappAlerts, setWhatsappAlerts] = useState(true);
+  const [weeklyReport, setWeeklyReport] = useState(false);
+  const [deploying, setDeploying] = useState(false);
+
   const resetForm = () => {
     setUseCase('');
+    setProblem('');
+    setOutcome('');
+    setTools('');
     setStep(1);
     setIsStopModalOpen(false);
+  };
+
+  const handleDeploy = async () => {
+    setDeploying(true);
+    try {
+      const { createBooking } = await import('../lib/api');
+      await createBooking({
+         type: 'automation',
+         status: 'booked',
+         title: useCase ? `Automation: ${useCase.substring(0, 30)}...` : 'New Automation',
+         use_case: useCase,
+         problem,
+         outcome,
+         tools_list: tools ? tools.split(',').map(s=>s.trim()) : [],
+         schedule_frequency: frequency,
+         notifications: { dailyReport, whatsappAlerts, weeklyReport }
+      });
+      alert('Automation deployed successfully!');
+      resetForm();
+    } catch (e: unknown) {
+      console.error(e);
+      alert('Failed to deploy automation.');
+    } finally {
+      setDeploying(false);
+    }
   };
 
   return (
@@ -812,12 +970,28 @@ export function AutomationsClient() {
                 <StepDefineDetails
                   onBack={() => setStep(1)}
                   onNext={() => setStep(3)}
+                  problem={problem} setProblem={setProblem}
+                  outcome={outcome} setOutcome={setOutcome}
+                  tools={tools} setTools={setTools}
+                  frequency={frequency} setFrequency={setFrequency}
+                  dailyReport={dailyReport} setDailyReport={setDailyReport}
+                  whatsappAlerts={whatsappAlerts} setWhatsappAlerts={setWhatsappAlerts}
+                  weeklyReport={weeklyReport} setWeeklyReport={setWeeklyReport}
                 />
               )}
               {step === 3 && (
                 <StepConfirm
-                  onBack={() => setStep(1)}
-                  onComplete={() => alert('Automation creation flow complete in mockup!')}
+                  onBack={() => setStep(2)}
+                  onComplete={handleDeploy}
+                  deploying={deploying}
+                  useCase={useCase}
+                  problem={problem}
+                  outcome={outcome}
+                  tools={tools}
+                  frequency={frequency}
+                  dailyReport={dailyReport}
+                  whatsappAlerts={whatsappAlerts}
+                  weeklyReport={weeklyReport}
                 />
               )}
             </div>

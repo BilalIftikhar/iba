@@ -8,6 +8,7 @@ export const metadata = {
 };
 
 export const revalidate = 30;
+export const dynamic = 'force-dynamic';
 
 const STATUS_MAP: Record<string, 'Running' | 'Completed' | 'Failed' | 'Waiting'> = {
     running: 'Running',

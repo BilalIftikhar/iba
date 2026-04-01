@@ -15,7 +15,7 @@ declare global {
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_for_development';
 
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {
-    if (req.path.match(/^\/api\/v1\/auth\/(login|signup|refresh)/)) {
+    if (req.path.match(/\/api\/v1\/auth\/(login|signup|refresh|google|google\/callback)/)) {
         return next();
     }
 

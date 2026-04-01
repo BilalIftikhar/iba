@@ -178,3 +178,115 @@ authRouter.post('/verify-otp', async (req, res) => {
     }
 });
 
+// ── Google OAuth 2.0 ───────────────────────────────────────────────
+import https from 'https';
+
+const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID ?? '';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET ?? '';
+const GOOGLE_REDIRECT_URI  = process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:4000/api/v1/auth/google/callback';
+
+// GET /api/v1/auth/google — redirect user to Google consent screen
+authRouter.get('/google', (_req, res) => {
+    if (!GOOGLE_CLIENT_ID) {
+        return res.status(500).json({ error: 'Google OAuth not configured. Set GOOGLE_CLIENT_ID in .env' });
+    }
+    const params = new URLSearchParams({
+        client_id:     GOOGLE_CLIENT_ID,
+        redirect_uri:  GOOGLE_REDIRECT_URI,
+        response_type: 'code',
+        scope:         'openid email profile',
+        access_type:   'offline',
+        prompt:        'select_account',
+    });
+    return res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+});
+
+// GET /api/v1/auth/google/callback — Google sends user back here with ?code=
+authRouter.get('/google/callback', async (req, res) => {
+    const code = req.query.code as string;
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    if (!code) return res.redirect(`${frontendUrl}/login?error=google_denied`);
+
+    try {
+        // 1. Exchange code for access_token
+        const tokenData = await new Promise<any>((resolve, reject) => {
+            const body = new URLSearchParams({
+                code,
+                client_id:     GOOGLE_CLIENT_ID,
+                client_secret: GOOGLE_CLIENT_SECRET,
+                redirect_uri:  GOOGLE_REDIRECT_URI,
+                grant_type:    'authorization_code',
+            }).toString();
+
+            const options = {
+                hostname: 'oauth2.googleapis.com',
+                path:     '/token',
+                method:   'POST',
+                headers:  {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(body),
+                },
+            };
+            const r = https.request(options, (resp) => {
+                let data = '';
+                resp.on('data', (chunk) => { data += chunk; });
+                resp.on('end', () => { try { resolve(JSON.parse(data)); } catch { reject(new Error('Token parse error')); } });
+            });
+            r.on('error', reject);
+            r.write(body);
+            r.end();
+        });
+
+        if (tokenData.error) throw new Error(tokenData.error_description ?? 'Google token exchange failed');
+
+        // 2. Fetch Google profile
+        const profile = await new Promise<any>((resolve, reject) => {
+            const r = https.request({
+                hostname: 'www.googleapis.com',
+                path:     '/oauth2/v2/userinfo',
+                method:   'GET',
+                headers:  { Authorization: `Bearer ${tokenData.access_token}` },
+            }, (resp) => {
+                let data = '';
+                resp.on('data', (chunk) => { data += chunk; });
+                resp.on('end', () => { try { resolve(JSON.parse(data)); } catch { reject(new Error('Profile parse error')); } });
+            });
+            r.on('error', reject);
+            r.end();
+        });
+
+        const { email, given_name, family_name } = profile;
+        if (!email) throw new Error('No email returned from Google');
+
+        // 3. Upsert user — Google users use a placeholder password_hash
+        let user = await prisma.user.findUnique({ where: { email } });
+        if (!user) {
+            user = await prisma.user.create({
+                data: {
+                    email,
+                    password_hash: `google_oauth_${Date.now()}`,
+                    first_name: given_name ?? 'Google',
+                    last_name:  family_name ?? 'User',
+                    hourly_rate: 0,
+                },
+            });
+        }
+
+        // 4. Issue IBA JWTs
+        const access_token  = jwt.sign({ userId: user.id }, JWT_SECRET,     { expiresIn: '15m' });
+        const refresh_token = jwt.sign({ userId: user.id }, REFRESH_SECRET, { expiresIn: '30d' });
+
+        res.cookie('refresh_token', refresh_token, {
+            httpOnly: true,
+            secure:   process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge:   30 * 24 * 60 * 60 * 1000,
+        });
+
+        // 5. Redirect frontend with token — frontend page reads it and stores in localStorage
+        return res.redirect(`${frontendUrl}/auth/google-success?token=${access_token}&name=${encodeURIComponent(user.first_name)}`);
+    } catch (err: any) {
+        console.error('[Google OAuth Callback]', err.message);
+        return res.redirect(`${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/login?error=google_failed`);
+    }
+});

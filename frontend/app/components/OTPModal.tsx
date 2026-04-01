@@ -65,7 +65,7 @@ export function OTPModal({ email, purpose, onSuccess, onCancel }: OTPModalProps)
             const token = localStorage.getItem('access_token');
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/auth/verify-otp`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
@@ -73,7 +73,6 @@ export function OTPModal({ email, purpose, onSuccess, onCancel }: OTPModalProps)
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Invalid code. Please check and try again.');
-
             onSuccess();
         } catch (err: unknown) {
             setError((err as Error).message);
@@ -92,7 +91,7 @@ export function OTPModal({ email, purpose, onSuccess, onCancel }: OTPModalProps)
             const token = localStorage.getItem('access_token');
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/auth/send-otp`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
@@ -111,75 +110,153 @@ export function OTPModal({ email, purpose, onSuccess, onCancel }: OTPModalProps)
     };
 
     return (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '440px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', position: 'relative' }}>
-                <button 
-                    onClick={onCancel}
-                    style={{ position: 'absolute', top: '16px', right: '16px', backgroundColor: 'transparent', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748B' }}
-                >
-                    &times;
-                </button>
-                <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '24px', color: '#0F172A', marginBottom: '8px', textAlign: 'center' }}>Enter Code</h2>
-                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#64748B', textAlign: 'center', marginBottom: '24px' }}>
-                    We&apos;ve sent a 6-digit verification code to {email}. It expires in 10 minutes.
-                </p>
+        <>
+            <style>{`
+                .otp-backdrop {
+                    position: fixed;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background: rgba(15, 23, 42, 0.65);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 9999;
+                    padding: 16px;
+                    box-sizing: border-box;
+                }
+                .otp-modal {
+                    background: #ffffff;
+                    border-radius: 24px;
+                    padding: 32px;
+                    width: 100%;
+                    max-width: 440px;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+                    position: relative;
+                    box-sizing: border-box;
+                }
+                .otp-grid {
+                    display: flex;
+                    gap: clamp(6px, 2vw, 12px);
+                    justify-content: center;
+                    margin-bottom: 24px;
+                }
+                .otp-cell {
+                    width: clamp(38px, 12vw, 60px);
+                    height: clamp(46px, 13vw, 64px);
+                    text-align: center;
+                    font-size: clamp(18px, 5vw, 26px);
+                    font-weight: 700;
+                    font-family: Inter, sans-serif;
+                    border: 2px solid #E2E8F0;
+                    border-radius: 12px;
+                    background: #F8FAFC;
+                    outline: none;
+                    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+                    color: #0F172A;
+                    caret-color: #00C2FF;
+                    flex-shrink: 1;
+                    min-width: 0;
+                }
+                .otp-cell:focus {
+                    border-color: #00C2FF;
+                    background: #ffffff;
+                    box-shadow: 0 0 0 3px rgba(0, 194, 255, 0.18);
+                }
+                @media (max-width: 400px) {
+                    .otp-modal {
+                        padding: 24px 16px;
+                        border-radius: 20px;
+                    }
+                    .otp-cell {
+                        border-radius: 10px;
+                    }
+                    .otp-grid {
+                        gap: 5px;
+                    }
+                }
+            `}</style>
 
-                {error && (
-                    <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', color: '#EF4444', padding: '12px', borderRadius: '12px', fontSize: '13px', marginBottom: '16px' }}>
-                        ⚠️ {error}
-                    </div>
-                )}
-                {resendMessage && !error && (
-                    <div style={{ backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', color: '#10B981', padding: '12px', borderRadius: '12px', fontSize: '13px', marginBottom: '16px' }}>
-                        ℹ️ {resendMessage}
-                    </div>
-                )}
+            <div className="otp-backdrop">
+                <div className="otp-modal">
+                    {/* Close button */}
+                    <button
+                        onClick={onCancel}
+                        style={{
+                            position: 'absolute', top: '16px', right: '16px',
+                            background: 'transparent', border: 'none',
+                            fontSize: '20px', cursor: 'pointer', color: '#64748B', lineHeight: 1,
+                        }}
+                    >
+                        &times;
+                    </button>
 
-                <form onSubmit={handleVerify}>
-                    <div className="otp-grid" onPaste={handlePaste} style={{ marginBottom: '24px' }}>
-                        {code.map((digit, i) => (
-                            <input
-                                key={i}
-                                ref={(el) => { inputs.current[i] = el; }}
-                                type="text"
-                                inputMode="numeric"
-                                pattern="\d*"
-                                maxLength={1}
-                                className="otp-cell"
-                                value={digit}
-                                onChange={(e) => handleChange(i, e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(i, e)}
-                                autoFocus={i === 0}
-                                autoComplete="one-time-code"
-                            />
-                        ))}
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        <button
-                            type="button"
-                            onClick={handleClear}
-                            style={{ flex: 1, padding: '12px', backgroundColor: '#F1F5F9', border: 'none', borderRadius: '12px', color: '#475569', fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
-                        >
-                            Clear
-                        </button>
-                        <button
-                            type="submit"
-                            style={{ flex: 2, padding: '12px', backgroundColor: '#00C2FF', border: 'none', borderRadius: '12px', color: '#ffffff', fontWeight: 800, cursor: 'pointer', fontFamily: 'Inter, sans-serif' }}
-                            disabled={!isComplete || loading}
-                        >
-                            {loading ? '⏳ Verifying…' : 'Verify →'}
-                        </button>
-                    </div>
-
-                    <p style={{ marginTop: '24px', textAlign: 'center', fontSize: '13px', color: '#64748B' }}>
-                        Didn&apos;t receive it?{' '}
-                        <a href="#" onClick={handleResend} style={{ color: '#00C2FF', fontWeight: 700, textDecoration: 'none' }}>
-                            Resend code
-                        </a>
+                    <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: 'clamp(20px, 5vw, 24px)', color: '#0F172A', marginBottom: '8px', textAlign: 'center' }}>
+                        Enter Code
+                    </h2>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#64748B', textAlign: 'center', marginBottom: '24px', lineHeight: '1.6' }}>
+                        We&apos;ve sent a 6-digit verification code to{' '}
+                        <strong style={{ color: '#0F172A', wordBreak: 'break-all' }}>{email}</strong>.{' '}
+                        It expires in 10 minutes.
                     </p>
-                </form>
+
+                    {error && (
+                        <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', padding: '12px', borderRadius: '12px', fontSize: '13px', marginBottom: '16px', fontFamily: 'Inter, sans-serif' }}>
+                            ⚠️ {error}
+                        </div>
+                    )}
+                    {resendMessage && !error && (
+                        <div style={{ backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', color: '#059669', padding: '12px', borderRadius: '12px', fontSize: '13px', marginBottom: '16px', fontFamily: 'Inter, sans-serif' }}>
+                            ℹ️ {resendMessage}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleVerify}>
+                        {/* OTP Boxes */}
+                        <div className="otp-grid" onPaste={handlePaste}>
+                            {code.map((digit, i) => (
+                                <input
+                                    key={i}
+                                    ref={(el) => { inputs.current[i] = el; }}
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="\d*"
+                                    maxLength={1}
+                                    className="otp-cell"
+                                    value={digit}
+                                    onChange={(e) => handleChange(i, e.target.value)}
+                                    onKeyDown={(e) => handleKeyDown(i, e)}
+                                    autoFocus={i === 0}
+                                    autoComplete="one-time-code"
+                                />
+                            ))}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button
+                                type="button"
+                                onClick={handleClear}
+                                style={{ flex: 1, padding: '13px', backgroundColor: '#F1F5F9', border: 'none', borderRadius: '12px', color: '#475569', fontWeight: 700, cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: '15px' }}
+                            >
+                                Clear
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={!isComplete || loading}
+                                style={{ flex: 2, padding: '13px', backgroundColor: '#00C2FF', border: 'none', borderRadius: '12px', color: '#ffffff', fontWeight: 800, cursor: (!isComplete || loading) ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', fontSize: '15px', opacity: !isComplete ? 0.65 : 1, transition: 'opacity 0.15s' }}
+                            >
+                                {loading ? '⏳ Verifying…' : 'Verify →'}
+                            </button>
+                        </div>
+
+                        <p style={{ marginTop: '20px', textAlign: 'center', fontSize: '13px', color: '#64748B', fontFamily: 'Inter, sans-serif' }}>
+                            Didn&apos;t receive it?{' '}
+                            <a href="#" onClick={handleResend} style={{ color: '#00C2FF', fontWeight: 700, textDecoration: 'none' }}>
+                                Resend code
+                            </a>
+                        </p>
+                    </form>
+                </div>
             </div>
-        </div>
+        </>
     );
 }

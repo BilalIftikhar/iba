@@ -5,25 +5,54 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v
 
 type FetchOptions = RequestInit & { next?: { revalidate?: number | false } };
 
+// Silently exchange the HttpOnly refresh_token cookie for a new access_token.
+async function tryRefreshToken(): Promise<string | null> {
+    try {
+        const res = await fetch(`${API_BASE}/auth/refresh`, {
+            method: 'POST',
+            credentials: 'include', // sends the HttpOnly refresh_token cookie
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        const newToken = data.access_token;
+        if (newToken && typeof window !== 'undefined') {
+            localStorage.setItem('access_token', newToken);
+        }
+        return newToken ?? null;
+    } catch {
+        return null;
+    }
+}
+
 export async function apiFetch<T>(path: string, options?: FetchOptions): Promise<T> {
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
 
-    const res = await fetch(`${API_BASE}${path}`, {
-        credentials: 'include',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-            ...(options?.headers ?? {}),
-        },
-    });
+    const makeRequest = (tok: string | null) =>
+        fetch(`${API_BASE}${path}`, {
+            credentials: 'include',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(tok ? { 'Authorization': `Bearer ${tok}` } : {}),
+                ...(options?.headers ?? {}),
+            },
+        });
 
+    let res = await makeRequest(token);
+
+    // If expired, silently refresh and retry ONCE
+    if (res.status === 401 && typeof window !== 'undefined') {
+        const newToken = await tryRefreshToken();
+        if (newToken) {
+            res = await makeRequest(newToken);
+        }
+    }
+
+    // Still 401 after refresh attempt → clear and send to login
     if (res.status === 401) {
         if (typeof window !== 'undefined') {
             localStorage.removeItem('access_token');
             window.location.href = '/login';
-        } else {
-            console.error('[API] 401 Unauthorized during server-side fetch.');
         }
         throw new Error('[API] 401 Unauthorized');
     }

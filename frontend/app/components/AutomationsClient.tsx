@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { OptimizePromptButton } from './OptimizePromptButton';
 import { AnimatedTextarea } from './AnimatedTextarea';
+import { mockAiOptimize } from '../lib/mockAiOptimize';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 function ArrowRightIcon() {
@@ -268,13 +269,13 @@ function StepUseCase({
 
   const handleOptimize = () => {
     if (!useCase.trim()) return;
-    setUseCase(useCase + '\n\nOptimized: Incorporate sentiment analysis to categorize critical tickets and auto-assign them to specialized technical engineers.');
+    setUseCase(mockAiOptimize(useCase, 'useCase'));
     setIsOptimized(true);
   };
 
   const handleUndo = () => {
     setIsOptimized(false);
-    setUseCase('L2 Technical Support & Ticket Classification'); // Fallback mock value
+    setUseCase(''); // Since it was an empty form field or a template, reset appropriately
   };
 
   return (
@@ -478,7 +479,7 @@ function StepDefineDetails({
             />
             <div className="aauto-action-bar" style={{ marginTop: '16px', display: 'flex' }}>
               <OptimizePromptButton
-                onOptimize={() => setProblem(problem + ' (AI-enhanced: Focus on measurable efficiency loss and root cause of the bottleneck.)')}
+                onOptimize={() => setProblem(mockAiOptimize(problem, 'problem'))}
                 disabled={!problem.trim()}
               />
             </div>
@@ -505,7 +506,7 @@ function StepDefineDetails({
             />
             <div className="aauto-action-bar" style={{ marginTop: '16px', display: 'flex' }}>
               <OptimizePromptButton
-                onOptimize={() => setOutcome(outcome + ' (AI-enhanced: Add measurable KPIs and a clear success metric for this outcome.)')}
+                onOptimize={() => setOutcome(mockAiOptimize(outcome, 'outcome'))}
                 disabled={!outcome.trim()}
               />
             </div>
@@ -539,8 +540,8 @@ function StepDefineDetails({
             />
             <div className="aauto-action-bar" style={{ marginTop: '16px', display: 'flex' }}>
               <OptimizePromptButton
-                onOptimize={() => setTools(tools + ' (AI-enhanced: Consider adding Zapier or Make.com as middleware for broader compatibility.)')}
-                disabled={false}
+                onOptimize={() => setTools(mockAiOptimize(tools, 'tools'))}
+                disabled={!tools.trim()}
               />
             </div>
           </div>
@@ -851,6 +852,8 @@ export function AutomationsClient() {
   const [weeklyReport, setWeeklyReport] = useState(false);
   const [deploying, setDeploying] = useState(false);
 
+  const [deploySuccess, setDeploySuccess] = useState<string | null>(null);
+
   const resetForm = () => {
     setUseCase('');
     setProblem('');
@@ -858,13 +861,14 @@ export function AutomationsClient() {
     setTools('');
     setStep(1);
     setIsStopModalOpen(false);
+    setDeploySuccess(null);
   };
 
   const handleDeploy = async () => {
     setDeploying(true);
     try {
       const { createBooking } = await import('../lib/api');
-      await createBooking({
+      const result: any = await createBooking({
          type: 'automation',
          status: 'booked',
          title: useCase ? `Automation: ${useCase.substring(0, 30)}...` : 'New Automation',
@@ -875,11 +879,11 @@ export function AutomationsClient() {
          schedule_frequency: frequency,
          notifications: { dailyReport, whatsappAlerts, weeklyReport }
       });
-      alert('Automation deployed successfully!');
-      resetForm();
+      setDeploySuccess(result?.id ?? 'submitted');
+      setStep(1);
     } catch (e: unknown) {
       console.error(e);
-      alert('Failed to deploy automation.');
+      alert('Failed to submit automation. Please check your connection and try again.');
     } finally {
       setDeploying(false);
     }
@@ -893,6 +897,22 @@ export function AutomationsClient() {
         <div style={{ padding: '32px 32px 0' }}>
           <HeaderBar title="Ai Automations" />
         </div>
+
+        {/* ── Success Banner ── */}
+        {deploySuccess && (
+          <div style={{ margin: '16px 32px 0', backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '16px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#065F46', margin: 0 }}>Automation Submitted Successfully!</p>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#047857', margin: '2px 0 0' }}>Booking ID: <strong>{deploySuccess}</strong> — Our team will review and deploy your automation.</p>
+              </div>
+            </div>
+            <button onClick={() => setDeploySuccess(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6EE7B7', fontSize: '20px', lineHeight: 1 }}>×</button>
+          </div>
+        )}
 
         {/* Desktop Stepper (Full Width) */}
         <div style={{ padding: '24px 32px 0' }}>

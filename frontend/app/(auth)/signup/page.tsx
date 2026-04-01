@@ -161,10 +161,10 @@ export default function SignUpPage() {
 
                     <div className="auth-divider">OR</div>
 
-                    <button
-                        type="button"
+                    <a
+                        href={`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/auth/google`}
                         className="auth-btn-google"
-                        onClick={() => {/* TODO: Google OAuth */ }}
+                        style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
                     >
                         {/* Google G logo SVG */}
                         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -174,7 +174,7 @@ export default function SignUpPage() {
                             <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335" />
                         </svg>
                         Continue with Google
-                    </button>
+                    </a>
 
                     <p className="auth-helper" style={{ marginTop: 24 }}>
                         Already have an account?{' '}

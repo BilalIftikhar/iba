@@ -75,15 +75,74 @@ bookingsRouter.post('/', async (req: Request, res: Response) => {
 
 // GET /api/v1/bookings/:id — Get single booking by ID
 bookingsRouter.get('/:id', async (req: Request, res: Response) => {
-    return res.status(501).json({ message: 'Not implemented yet' });
+    try {
+        const userId = req.auth.userId;
+        const booking = await prisma.booking.findFirst({
+            where: { id: req.params.id, client_id: userId }
+        });
+        if (!booking) return res.status(404).json({ success: false, error: 'Booking not found.' });
+        return res.status(200).json({ success: true, data: booking });
+    } catch (error: any) {
+        console.error('[GET /bookings/:id]', error);
+        return res.status(500).json({ success: false, error: 'Failed to fetch booking.' });
+    }
 });
 
-// PATCH /api/v1/bookings/:id — Update booking (save draft state, etc.)
+// PATCH /api/v1/bookings/:id — Update booking (save draft state, change status, etc.)
 bookingsRouter.patch('/:id', async (req: Request, res: Response) => {
-    return res.status(501).json({ message: 'Not implemented yet' });
+    try {
+        const userId = req.auth.userId;
+        const existing = await prisma.booking.findFirst({
+            where: { id: req.params.id, client_id: userId }
+        });
+        if (!existing) return res.status(404).json({ success: false, error: 'Booking not found.' });
+
+        const {
+            status, title, use_case, problem, outcome,
+            tools_list, schedule_frequency, notifications, draft_state
+        } = req.body;
+
+        const updated = await prisma.booking.update({
+            where: { id: req.params.id },
+            data: {
+                ...(status !== undefined && { status }),
+                ...(title !== undefined && { title }),
+                ...(use_case !== undefined && { use_case }),
+                ...(problem !== undefined && { problem }),
+                ...(outcome !== undefined && { outcome }),
+                ...(tools_list !== undefined && { tools_list }),
+                ...(schedule_frequency !== undefined && { schedule_frequency }),
+                ...(notifications !== undefined && { notifications }),
+                ...(draft_state !== undefined && { draft_state }),
+                ...(status === 'booked' && !existing.booked_at && { booked_at: new Date() }),
+            }
+        });
+
+        return res.status(200).json({ success: true, data: updated });
+    } catch (error: any) {
+        console.error('[PATCH /bookings/:id]', error);
+        return res.status(500).json({ success: false, error: 'Failed to update booking.' });
+    }
 });
 
-// DELETE /api/v1/bookings/:id — Cancel a booking
+// DELETE /api/v1/bookings/:id — Cancel a booking (soft delete via status)
 bookingsRouter.delete('/:id', async (req: Request, res: Response) => {
-    return res.status(501).json({ message: 'Not implemented yet' });
+    try {
+        const userId = req.auth.userId;
+        const existing = await prisma.booking.findFirst({
+            where: { id: req.params.id, client_id: userId }
+        });
+        if (!existing) return res.status(404).json({ success: false, error: 'Booking not found.' });
+
+        const cancelled = await prisma.booking.update({
+            where: { id: req.params.id },
+            data: { status: 'cancelled' }
+        });
+
+        return res.status(200).json({ success: true, data: cancelled });
+    } catch (error: any) {
+        console.error('[DELETE /bookings/:id]', error);
+        return res.status(500).json({ success: false, error: 'Failed to cancel booking.' });
+    }
 });
+

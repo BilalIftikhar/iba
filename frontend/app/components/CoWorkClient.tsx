@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { OptimizePromptButton } from './OptimizePromptButton';
 import { AnimatedTextarea } from './AnimatedTextarea';
+import { mockAiOptimize } from '../lib/mockAiOptimize';
 
 /* ─── Global mobile styles ──────────────────────────────────────────────────── */
 const css = `
@@ -151,7 +152,7 @@ function DesktopProgress({ step }: { step: 1 | 2 | 3 }) {
 function StepUseCase({ form, setForm, onNext }: { form: CoWorkForm; setForm: (f: CoWorkForm) => void; onNext: () => void }) {
   const canProceed = form.useCase.length > 0;
   const handleAI = () => {
-    setForm({ ...form, useCase: form.useCase + ' Integrated with specified tools to provide real-time intelligent summaries.' });
+    setForm({ ...form, useCase: mockAiOptimize(form.useCase, 'useCase') });
   };
 
   return (
@@ -356,13 +357,28 @@ function StepTools({ form, setForm, onNext, onBack }: { form: CoWorkForm; setFor
 }
 
 /* ─── Step 3: Review & Book ─────────────────────────────────────────────────── */
-function StepConfirm({ form, onBack, onDeploy }: { form: CoWorkForm; onBack: () => void; onDeploy: () => void }) {
+function StepConfirm({ form, onBack, onDeploy }: { form: CoWorkForm; onBack: () => void; onDeploy: (bookingId: string) => void }) {
   const [deploying, setDeploying] = useState(false);
-  const [ref] = useState(() => '#AI-' + Math.random().toString(36).substr(2, 4).toUpperCase());
+  const [error, setError] = useState('');
 
-  const handleDeploy = () => {
+  const handleDeploy = async () => {
     setDeploying(true);
-    setTimeout(() => { setDeploying(false); onDeploy(); }, 2500);
+    setError('');
+    try {
+      const { createBooking } = await import('../lib/api');
+      const result: any = await createBooking({
+        type: 'cowork',
+        status: 'booked',
+        title: form.useCase ? `Co-Work: ${form.useCase.substring(0, 40)}` : 'AI Co-Work Request',
+        use_case: form.useCase,
+        tools_list: [...form.tools, ...(form.chatClient ? [form.chatClient] : [])],
+      });
+      onDeploy(result?.id ?? 'submitted');
+    } catch (e: unknown) {
+      setError((e as Error).message || 'Failed to submit. Please try again.');
+    } finally {
+      setDeploying(false);
+    }
   };
 
   return (
@@ -424,7 +440,7 @@ function StepConfirm({ form, onBack, onDeploy }: { form: CoWorkForm; onBack: () 
           </div>
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px' }}>
             <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', margin: '0 0 4px' }}>Booking Reference</p>
-            <p style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '16px', color: '#00E5FF', margin: 0 }}>{ref}</p>
+            <p style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '16px', color: '#00E5FF', margin: 0 }}>Assigned after confirmation</p>
           </div>
         </div>
       </div>
@@ -437,9 +453,12 @@ function StepConfirm({ form, onBack, onDeploy }: { form: CoWorkForm; onBack: () 
         <div className="hidden md:block text-[13px] text-[#64748B] font-medium">
           <strong className="text-[#1F2937]">TIP:</strong> If you decided to get support, save as draft then you an start where you left
         </div>
-        <button onClick={handleDeploy} disabled={deploying} style={{ backgroundColor: '#00c2ff', borderRadius: '12px', border: 'none', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px', cursor: deploying ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#FFFFFF', opacity: deploying ? 0.7 : 1 }}>
-          {deploying ? <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>Confirming...</> : 'Confirm Booking'}
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+          {error && <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#EF4444', margin: 0 }}>⚠️ {error}</p>}
+          <button onClick={handleDeploy} disabled={deploying} style={{ backgroundColor: '#00c2ff', borderRadius: '12px', border: 'none', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px', cursor: deploying ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#FFFFFF', opacity: deploying ? 0.7 : 1 }}>
+            {deploying ? <><svg style={{ width: 16, height: 16, animation: 'spin .8s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>Confirming...</> : 'Confirm Booking'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -471,16 +490,16 @@ const DEFAULT_FORM: CoWorkForm = { useCase: '', chatClient: 'Claude 3.5 Sonnet',
 
 export function CoWorkClient() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [deployed, setDeployed] = useState(false);
+  const [deploySuccess, setDeploySuccess] = useState<string | null>(null);
   const [form, setForm] = useState<CoWorkForm>(DEFAULT_FORM);
-  const reset = () => { setStep(1); setDeployed(false); setForm(DEFAULT_FORM); };
+  const reset = () => { setStep(1); setDeploySuccess(null); setForm(DEFAULT_FORM); };
 
   return (
     <div style={{ minHeight: '100%', backgroundColor: '#F3F4F6', display: 'flex', flexDirection: 'column' }}>
       <style>{css}</style>
 
       {/* ── Progress ── */}
-      {!deployed && (
+      {!deploySuccess && (
         <section style={{ padding: '0 16px 0' }}>
           {/* Mobile card-style progress */}
           <MobileProgress step={step} />
@@ -492,17 +511,29 @@ export function CoWorkClient() {
         </section>
       )}
 
+      {/* ── Success Banner ── */}
+      {deploySuccess && (
+        <div style={{ margin: '16px 32px 0', backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '16px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#065F46', margin: 0 }}>AI Co-Work Request Submitted!</p>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#047857', margin: '2px 0 0' }}>Booking ID: <strong>{deploySuccess}</strong> — Our team will review and set up your co-work environment.</p>
+            </div>
+          </div>
+          <button onClick={() => setDeploySuccess(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6EE7B7', fontSize: '20px', lineHeight: 1 }}>×</button>
+        </div>
+      )}
+
       {/* ── Content ── */}
       <div style={{ flex: 1, paddingTop: '24px' }}>
-        {deployed ? (
-          <SuccessScreen onReset={reset} />
-        ) : (
-          <>
-            {step === 1 && <StepUseCase form={form} setForm={setForm} onNext={() => setStep(2)} />}
-            {step === 2 && <StepTools form={form} setForm={setForm} onNext={() => setStep(3)} onBack={() => setStep(1)} />}
-            {step === 3 && <StepConfirm form={form} onBack={() => setStep(2)} onDeploy={() => setDeployed(true)} />}
-          </>
-        )}
+        <>
+          {step === 1 && <StepUseCase form={form} setForm={setForm} onNext={() => setStep(2)} />}
+          {step === 2 && <StepTools form={form} setForm={setForm} onNext={() => setStep(3)} onBack={() => setStep(1)} />}
+          {step === 3 && <StepConfirm form={form} onBack={() => setStep(2)} onDeploy={(id) => { setDeploySuccess(id); setStep(1); setForm(DEFAULT_FORM); }} />}
+        </>
       </div>
     </div>
   );

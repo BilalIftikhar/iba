@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { OptimizePromptButton } from './OptimizePromptButton';
 import { AnimatedTextarea } from './AnimatedTextarea';
+import { mockAiOptimize } from '../lib/mockAiOptimize';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface AiAppsForm {
@@ -286,7 +287,7 @@ function StepUseCase({ form, setForm, onNext }: { form: AiAppsForm; setForm: (f:
                 />
                 <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 16px 16px' }}>
                   <OptimizePromptButton
-                    onOptimize={() => setForm({ ...form, description: form.description + ' (AI-enhanced: Refined architecture with scalable module separation and smart state management.)' })}
+                    onOptimize={() => setForm({ ...form, description: mockAiOptimize(form.description, 'architecture') })}
                     disabled={!form.description.trim()}
                   />
                 </div>
@@ -425,14 +426,14 @@ function StepDataSource({ form, setForm, onNext, onBack }: { form: AiAppsForm; s
           </div>
 
           {/* Other input */}
-          <div style={{ backgroundColor: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '12px', padding: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '14px', color: '#374151', display: 'block', marginBottom: '6px' }}>Other Data Source</label>
-              <input type="text" value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder="e.g. Salesforce, Stripe, custom API..." style={{ width: '100%', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px 12px', fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#4B5563', outline: 'none', backgroundColor: '#FFFFFF', boxSizing: 'border-box' }} />
+          <div style={{ backgroundColor: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '12px', padding: '20px' }}>
+            <label style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '14px', color: '#374151', display: 'block', marginBottom: '8px' }}>Other Data Source</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <input type="text" value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder="e.g. Salesforce, Stripe, custom API..." style={{ flex: 1, border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px 12px', fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#4B5563', outline: 'none', backgroundColor: '#FFFFFF', boxSizing: 'border-box' }} />
+              <button onClick={() => { if (otherText.trim()) { setOtherText(''); } }} style={{ backgroundColor: '#00EAFF', borderRadius: '8px', border: 'none', padding: '10px 16px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#1F2937', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, height: '40px' }}>
+                Add
+              </button>
             </div>
-            <button onClick={() => { if (otherText.trim()) { setOtherText(''); } }} style={{ backgroundColor: '#00EAFF', borderRadius: '8px', border: 'none', padding: '10px 16px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#1F2937', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
-              Add
-            </button>
           </div>
         </div>
 
@@ -473,11 +474,33 @@ function StepDataSource({ form, setForm, onNext, onBack }: { form: AiAppsForm; s
 }
 
 // ─── Step 3: Review & Book ────────────────────────────────────────────────────
-function StepReviewBook({ form, onBack, onConfirm }: { form: AiAppsForm; onBack: () => void; onConfirm: () => void }) {
+function StepReviewBook({ form, onBack, onConfirm }: { form: AiAppsForm; onBack: () => void; onConfirm: (bookingId: string) => void }) {
   const [confirming, setConfirming] = useState(false);
-  const [bookingRef] = useState(() => '#AI-' + Math.random().toString(36).substr(2, 4).toUpperCase() + '-' + Math.random().toString(36).substr(2, 2).toUpperCase());
-  const handleConfirm = () => { setConfirming(true); setTimeout(() => { setConfirming(false); onConfirm(); }, 2500); };
+  const [error, setError] = useState('');
   const selectedSources = DATA_SOURCES.filter(s => form.dataSources.includes(s.id));
+
+  const handleConfirm = async () => {
+    setConfirming(true);
+    setError('');
+    try {
+      const { createBooking } = await import('../lib/api');
+      const result: any = await createBooking({
+        type: 'custom_app',
+        status: 'booked',
+        title: form.description ? `AI App: ${form.description.substring(0, 40)}` : 'AI Custom App Request',
+        use_case: form.description,
+        tools_list: [
+          ...form.dataSources,
+          ...(form.otherSource ? [form.otherSource] : []),
+        ],
+      });
+      onConfirm(result?.id ?? 'submitted');
+    } catch (e: unknown) {
+      setError((e as Error).message || 'Failed to submit. Please try again.');
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   return (
     <>
@@ -557,7 +580,7 @@ function StepReviewBook({ form, onBack, onConfirm }: { form: AiAppsForm; onBack:
               </div>
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px' }}>
                 <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', margin: '0 0 4px' }}>Booking Reference</p>
-                <p style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '16px', color: '#00EAFF', margin: 0 }}>{bookingRef}</p>
+                <p style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '16px', color: '#00EAFF', margin: 0 }}>Assigned after confirmation</p>
               </div>
             </div>
           </div>
@@ -571,9 +594,12 @@ function StepReviewBook({ form, onBack, onConfirm }: { form: AiAppsForm; onBack:
         <div className="hidden md:block text-[13px] text-[#64748B] font-medium">
           <strong className="text-[#1F2937]">TIP:</strong> If you decided to get support, save as draft then you an start where you left
         </div>
-        <button onClick={handleConfirm} disabled={confirming} style={{ backgroundColor: '#00c2ff', borderRadius: '12px', border: 'none', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px', cursor: confirming ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#FFFFFF', opacity: confirming ? 0.7 : 1 }}>
-          {confirming ? <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>Confirming...</> : 'Confirm Booking'}
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+          {error && <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#EF4444', margin: 0 }}>⚠️ {error}</p>}
+          <button onClick={handleConfirm} disabled={confirming} style={{ backgroundColor: '#00c2ff', borderRadius: '12px', border: 'none', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px', cursor: confirming ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#FFFFFF', opacity: confirming ? 0.7 : 1 }}>
+            {confirming ? <><svg style={{ width: 16, height: 16, animation: 'spin .8s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>Confirming...</> : 'Confirm Booking'}
+          </button>
+        </div>
       </div>
     </>
   );
@@ -605,16 +631,16 @@ const DEFAULT_FORM: AiAppsForm = { description: '', dataSources: ['supabase'], o
 
 export function AiAppsClient() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [confirmed, setConfirmed] = useState(false);
+  const [deploySuccess, setDeploySuccess] = useState<string | null>(null);
   const [form, setForm] = useState<AiAppsForm>(DEFAULT_FORM);
-  const reset = () => { setStep(1); setConfirmed(false); setForm(DEFAULT_FORM); };
+  const reset = () => { setStep(1); setDeploySuccess(null); setForm(DEFAULT_FORM); };
 
   return (
     <div style={{ minHeight: '100%', backgroundColor: '#F3F4F6', display: 'flex', flexDirection: 'column' }}>
       <style>{css}</style>
 
       {/* ── Progress ── */}
-      {!confirmed && (
+      {!deploySuccess && (
         <section className="aiapps-progress-section" style={{ padding: '0 16px 0' }}>
           {/* Mobile card progress */}
           <MobileProgress step={step} />
@@ -626,17 +652,29 @@ export function AiAppsClient() {
         </section>
       )}
 
+      {/* ── Success Banner ── */}
+      {deploySuccess && (
+        <div style={{ margin: '16px 32px 0', backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '16px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#065F46', margin: 0 }}>AI Custom App Request Submitted!</p>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#047857', margin: '2px 0 0' }}>Booking ID: <strong>{deploySuccess}</strong> — Our engineers will begin the build and notify you within 4 hours.</p>
+            </div>
+          </div>
+          <button onClick={() => setDeploySuccess(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6EE7B7', fontSize: '20px', lineHeight: 1 }}>×</button>
+        </div>
+      )}
+
       {/* ── Content ── */}
       <div className="aiapps-content-top" style={{ flex: 1, paddingTop: '24px' }}>
-        {confirmed ? (
-          <SuccessScreen onReset={reset} />
-        ) : (
-          <>
-            {step === 1 && <StepUseCase form={form} setForm={setForm} onNext={() => setStep(2)} />}
-            {step === 2 && <StepDataSource form={form} setForm={setForm} onNext={() => setStep(3)} onBack={() => setStep(1)} />}
-            {step === 3 && <StepReviewBook form={form} onBack={() => setStep(2)} onConfirm={() => setConfirmed(true)} />}
-          </>
-        )}
+        <>
+          {step === 1 && <StepUseCase form={form} setForm={setForm} onNext={() => setStep(2)} />}
+          {step === 2 && <StepDataSource form={form} setForm={setForm} onNext={() => setStep(3)} onBack={() => setStep(1)} />}
+          {step === 3 && <StepReviewBook form={form} onBack={() => setStep(2)} onConfirm={(id) => { setDeploySuccess(id); setStep(1); setForm(DEFAULT_FORM); }} />}
+        </>
       </div>
     </div>
   );

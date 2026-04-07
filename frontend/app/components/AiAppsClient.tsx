@@ -9,7 +9,7 @@ import { mockAiOptimize } from '../lib/mockAiOptimize';
 interface AiAppsForm {
   description: string;
   dataSources: string[];
-  otherSource: string;
+  otherSources: string[];   // custom user-entered data sources
 }
 
 // ─── Data Source Options ──────────────────────────────────────────────────────
@@ -102,8 +102,8 @@ const css = `
   .aiapps-datasrc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
 
   /* ── Step 3 layout ── */
-  .aiapps-step3-layout { padding: 0 32px; display: flex; align-items: flex-start; gap: 24px; }
-  .aiapps-step3-main { flex: 1; min-width: 0; max-width: 924px; }
+  .aiapps-step3-layout { padding: 0 32px; display: flex; justify-content: center; align-items: flex-start; gap: 24px; min-width: 0; }
+  .aiapps-step3-main { flex: 0 1 1280px; min-width: 0; }
   .aiapps-review-row { display: flex; gap: 16px; margin-bottom: 24px; }
   .aiapps-review-preview { width: 304px; flex-shrink: 0; }
   .aiapps-bottom-row { display: flex; gap: 16px; }
@@ -147,6 +147,8 @@ const css = `
     .aiapps-review-preview { width: 100%; min-height: 150px; }
     .aiapps-bottom-row { flex-direction: column; }
     .aiapps-timeline-card { width: 100%; }
+    .aiapps-review-main-grid { grid-template-columns: 1fr !important; }
+    .aiapps-support-grid { grid-template-columns: 1fr !important; }
 
     /* Footer */
     .aiapps-footer {
@@ -368,19 +370,43 @@ function StepDataSource({ form, setForm, onNext, onBack }: { form: AiAppsForm; s
   const [sources, setSources] = useState(() =>
     DATA_SOURCES.map(s => ({ ...s, selected: form.dataSources.includes(s.id) || s.id === 'supabase' }))
   );
-  const [otherText, setOtherText] = useState(form.otherSource || '');
+  // Input field value for the "other" text box
+  const [otherInput, setOtherInput] = useState('');
+  // List of custom sources the user has confirmed by clicking Add
+  const [customSources, setCustomSources] = useState<string[]>(form.otherSources || []);
   const [hovered, setHovered] = useState<string | null>(null);
+  const [inputError, setInputError] = useState('');
 
   const toggle = (id: string) => {
     setSources(prev => prev.map(s => s.id === id ? { ...s, selected: !s.selected } : s));
   };
 
+  const addCustomSource = () => {
+    const trimmed = otherInput.trim();
+    if (!trimmed) return;
+    if (customSources.map(s => s.toLowerCase()).includes(trimmed.toLowerCase())) {
+      setInputError('Already added');
+      return;
+    }
+    setCustomSources(prev => [...prev, trimmed]);
+    setOtherInput('');
+    setInputError('');
+  };
+
+  const removeCustomSource = (index: number) => {
+    setCustomSources(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleNext = () => {
-    setForm({ ...form, dataSources: sources.filter(s => s.selected).map(s => s.id), otherSource: otherText });
+    setForm({
+      ...form,
+      dataSources: sources.filter(s => s.selected).map(s => s.id),
+      otherSources: customSources,
+    });
     onNext();
   };
 
-  const selectedCount = sources.filter(s => s.selected).length;
+  const selectedCount = sources.filter(s => s.selected).length + customSources.length;
 
   return (
     <>
@@ -425,15 +451,56 @@ function StepDataSource({ form, setForm, onNext, onBack }: { form: AiAppsForm; s
             })}
           </div>
 
-          {/* Other input */}
-          <div style={{ backgroundColor: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '12px', padding: '20px' }}>
-            <label style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '14px', color: '#374151', display: 'block', marginBottom: '8px' }}>Other Data Source</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <input type="text" value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder="e.g. Salesforce, Stripe, custom API..." style={{ flex: 1, border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px 12px', fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#4B5563', outline: 'none', backgroundColor: '#FFFFFF', boxSizing: 'border-box' }} />
-              <button onClick={() => { if (otherText.trim()) { setOtherText(''); } }} style={{ backgroundColor: '#00EAFF', borderRadius: '8px', border: 'none', padding: '10px 16px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#1F2937', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, height: '40px' }}>
+          {/* ── Other Data Source ── */}
+          <div style={{ backgroundColor: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '12px', padding: '20px', marginTop: '8px' }}>
+            <label style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '14px', color: '#374151', display: 'block', marginBottom: '4px' }}>Other Data Source</label>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#94A3B8', margin: '0 0 12px' }}>Add any data source not listed above — press Enter or click Add.</p>
+
+            {/* Input row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ flex: 1, position: 'relative' }}>
+                <input
+                  type="text"
+                  value={otherInput}
+                  onChange={(e) => { setOtherInput(e.target.value); setInputError(''); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomSource(); } }}
+                  placeholder="e.g. Salesforce, Stripe, custom API..."
+                  style={{ width: '100%', border: `1px solid ${inputError ? '#EF4444' : '#E2E8F0'}`, borderRadius: '8px', padding: '10px 12px', fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#4B5563', outline: 'none', backgroundColor: '#FFFFFF', boxSizing: 'border-box', transition: 'border-color 0.15s ease' }}
+                />
+                {inputError && (
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#EF4444', margin: '4px 0 0', position: 'absolute' }}>{inputError}</p>
+                )}
+              </div>
+              <button
+                onClick={addCustomSource}
+                disabled={!otherInput.trim()}
+                style={{ backgroundColor: otherInput.trim() ? '#00EAFF' : '#E2E8F0', borderRadius: '8px', border: 'none', padding: '10px 20px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: otherInput.trim() ? '#1F2937' : '#94A3B8', cursor: otherInput.trim() ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', flexShrink: 0, height: '42px', transition: 'all 0.15s ease', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
                 Add
               </button>
             </div>
+
+            {/* Added custom source chips */}
+            {customSources.length > 0 && (
+              <div style={{ marginTop: '14px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {customSources.map((src, idx) => (
+                  <div
+                    key={idx}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(0,234,255,0.1)', border: '1px solid rgba(0,234,255,0.35)', borderRadius: '8px', padding: '5px 10px 5px 12px' }}
+                  >
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '13px', color: '#1F2937' }}>➕ {src}</span>
+                    <button
+                      onClick={() => removeCustomSource(idx)}
+                      title="Remove"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', display: 'flex', alignItems: 'center', color: '#6B7280', lineHeight: 1 }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -451,7 +518,10 @@ function StepDataSource({ form, setForm, onNext, onBack }: { form: AiAppsForm; s
           {selectedCount > 0 && (
             <div style={{ backgroundColor: 'rgba(0,234,255,0.1)', borderRadius: '8px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#00EAFF', animation: 'aiPulse 1.8s ease-in-out infinite' }} />
-              <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '13px', color: '#4B5563' }}>{selectedCount} source{selectedCount !== 1 ? 's' : ''} selected</span>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '13px', color: '#4B5563' }}>
+                {selectedCount} source{selectedCount !== 1 ? 's' : ''} selected
+                {customSources.length > 0 && <span style={{ color: '#00EAFF' }}> (+{customSources.length} custom)</span>}
+              </span>
             </div>
           )}
           <div style={{ borderTop: '1px solid rgba(0,234,255,0.1)', paddingTop: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -476,7 +546,9 @@ function StepDataSource({ form, setForm, onNext, onBack }: { form: AiAppsForm; s
 // ─── Step 3: Review & Book ────────────────────────────────────────────────────
 function StepReviewBook({ form, onBack, onConfirm }: { form: AiAppsForm; onBack: () => void; onConfirm: (bookingId: string) => void }) {
   const [confirming, setConfirming] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [error, setError] = useState('');
+  const [draftSaved, setDraftSaved] = useState<string | null>(null);
   const selectedSources = DATA_SOURCES.filter(s => form.dataSources.includes(s.id));
 
   const handleConfirm = async () => {
@@ -491,7 +563,7 @@ function StepReviewBook({ form, onBack, onConfirm }: { form: AiAppsForm; onBack:
         use_case: form.description,
         tools_list: [
           ...form.dataSources,
-          ...(form.otherSource ? [form.otherSource] : []),
+          ...(form.otherSources?.length ? form.otherSources : []),
         ],
       });
       onConfirm(result?.id ?? 'submitted');
@@ -502,108 +574,256 @@ function StepReviewBook({ form, onBack, onConfirm }: { form: AiAppsForm; onBack:
     }
   };
 
+  const handleSaveDraft = async () => {
+    setSavingDraft(true);
+    setError('');
+    try {
+      const { saveDraft } = await import('../lib/api');
+      const result: any = await saveDraft({
+        type: 'custom_app',
+        title: form.description ? `AI App: ${form.description.substring(0, 40)}` : 'AI Custom App (Draft)',
+        use_case: form.description,
+        tools_list: [...form.dataSources, ...(form.otherSources ?? [])],
+        draft_state: {
+          step: 3,
+          description: form.description,
+          dataSources: form.dataSources,
+          otherSources: form.otherSources,
+        },
+      });
+      setDraftSaved(result?.id ?? 'saved');
+      setTimeout(() => setDraftSaved(null), 5000);
+    } catch (e: unknown) {
+      setError((e as Error).message || 'Failed to save draft. Please try again.');
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const integrationText = selectedSources.length > 0
+    ? selectedSources.slice(0, 3).map(s => s.label).join(' + ')
+    : 'SaaS Suite & CRM';
+
+  const targetDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const outcomePoints = ['Real-time Dashboard', 'AI-driven insights', 'Custom client views'];
+
   return (
     <>
       <div className="aiapps-step3-layout">
         <div className="aiapps-step3-main">
-          <div style={{ display: 'inline-flex', backgroundColor: '#F3F4F6', borderRadius: '6px', padding: '4px 12px', marginBottom: '16px' }}>
-            <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#6B7280' }}>Your App Summary</span>
-          </div>
-          <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '24px', lineHeight: '1.33em', color: '#1F2937', margin: '0 0 12px' }}>
-            Review &amp; Confirm Your App Build
-          </h2>
-          <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '16px', lineHeight: '1.625em', color: '#6B7280', margin: '0 0 28px', maxWidth: '570px' }}>
-            Your AI App request is ready. Our team will validate this and begin the build phase.
-          </p>
 
-          {/* Summary + Preview */}
-          <div className="aiapps-review-row">
-            <div style={{ flex: 1, backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '16px', padding: '24px', boxSizing: 'border-box' }}>
-              <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9CA3AF', margin: '0 0 12px' }}>App Description</p>
-              <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', lineHeight: '1.6em', color: '#4B5563', margin: '0 0 20px' }}>{form.description || 'No description provided.'}</p>
-              <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9CA3AF', margin: '0 0 12px' }}>Data Sources</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {selectedSources.length > 0 ? selectedSources.map(s => (
-                  <span key={s.id} style={{ backgroundColor: 'rgba(0,234,255,0.1)', border: '1px solid rgba(0,234,255,0.3)', borderRadius: '6px', padding: '4px 10px', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '12px', color: '#1F2937', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {s.icon} {s.label}
-                  </span>
-                )) : <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#9CA3AF' }}>None selected</span>}
-              </div>
-            </div>
-            <div className="aiapps-review-preview" style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative', minHeight: '200px', backgroundColor: '#F1F5F9' }}>
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(164deg, rgba(0,234,255,0.1) 0%, rgba(0,234,255,0) 100%)' }} />
-              <div style={{ position: 'absolute', top: '16px', left: '16px', backgroundColor: 'rgba(15,34,35,0.6)', borderRadius: '6px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#00EAFF', display: 'inline-block', animation: 'aiPulse 1.8s ease-in-out infinite' }} />
-                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', color: '#FFFFFF' }}>AI Preview</span>
-              </div>
-              <div style={{ position: 'absolute', bottom: '16px', left: '16px', right: '16px' }}>
-                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#4B5563', margin: '0 0 4px' }}>App Preview</p>
-                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '12px', color: '#64748B', margin: 0 }}>Generated after confirmation</p>
-              </div>
-            </div>
+          {/* ── Title ── */}
+          <div style={{ marginBottom: '24px' }}>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#00EAFF', margin: '0 0 8px' }}>✦ Final Step</p>
+            <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '32px', lineHeight: '1.2em', color: '#1F2937', margin: '0 0 8px' }}>Review &amp; Confirm</h2>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', lineHeight: '1.5em', color: '#6B7280', margin: 0 }}>Please verify your project details before we begin the deployment phase.</p>
           </div>
 
-          {/* Support + Timeline */}
-          <div className="aiapps-bottom-row">
-            <div style={{ flex: 1, backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '16px', padding: '24px', boxSizing: 'border-box' }}>
-              <div style={{ width: '40px', height: '40px', backgroundColor: 'rgba(0,234,255,0.1)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 12 11 14 15 10" /></svg>
-              </div>
-              <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '18px', color: '#1F2937', margin: '0 0 10px' }}>We&apos;ve Got You Covered</h4>
-              <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', lineHeight: '1.6em', color: '#64748B', margin: '0 0 20px' }}>
-                Once confirmed, our team will validate the architecture and begin the production build. You&apos;ll receive a notification within 4 business hours.
-              </p>
-              <div style={{ display: 'flex', gap: '20px' }}>
-                <button style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '13px', color: '#00EAFF', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16h16V8z" /><polyline points="14 2 14 8 20 8" /></svg>Create Ticket
-                </button>
-                <button style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '13px', color: '#00EAFF', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>Schedule Meeting
-                </button>
-              </div>
-            </div>
+          {/* ── Two-column main grid ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '16px', marginBottom: '16px' }} className="aiapps-review-main-grid">
 
-            {/* Timeline — dark card */}
-            <div className="aiapps-timeline-card" style={{ backgroundColor: '#1B2533', borderRadius: '16px', padding: '24px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, #00EAFF, #3B82F6, #10B981)' }} />
-              <div style={{ position: 'relative', borderLeft: '2px solid rgba(255,255,255,0.1)', paddingLeft: '24px', display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '20px' }}>
-                {[{ done: true, status: 'Completed', label: 'AI Calculation Complete', sub: '' },
-                  { done: false, status: 'Next Phase', label: 'Setup Time: 2–3 Days', sub: 'Engineer assigned' },
-                  { done: false, status: 'Target Date', label: 'Deployment: Est. 2 Weeks', sub: '' }].map((item, i) => (
-                  <div key={i} style={{ position: 'relative' }}>
-                    <div style={{ position: 'absolute', left: item.done ? '-31px' : '-29px', top: '2px', width: item.done ? '12px' : '8px', height: item.done ? '12px' : '8px', borderRadius: '50%', backgroundColor: item.done ? '#00EAFF' : '#1B2533', border: item.done ? 'none' : '2px solid #475569', boxShadow: item.done ? '0 0 10px rgba(0,234,255,0.6)' : 'none' }} />
-                    <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', margin: '0 0 3px' }}>{item.status}</p>
-                    <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '14px', color: '#FFFFFF', margin: 0 }}>{item.label}</p>
-                    {item.sub && <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '12px', color: '#64748B', margin: '2px 0 0' }}>{item.sub}</p>}
+            {/* Left: Project Summary Card */}
+            <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '28px', boxShadow: '0px 1px 3px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Card header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'inline-flex', backgroundColor: '#F3F4F6', borderRadius: '6px', padding: '4px 10px' }}>
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#6B7280' }}>Project Summary</span>
+                </div>
+              </div>
+
+              <div>
+                <h3 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '16px', color: '#1F2937', margin: '0 0 8px' }}>
+                  App Use Case: {form.description ? form.description.split(' ').slice(0, 3).join(' ') + '...' : 'Client Portal'}
+                </h3>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', lineHeight: '1.6em', color: '#4B5563', margin: 0 }}>
+                  {form.description || 'A centralized hub designed for real-time reporting and interactive data management. Features custom views tailored to individual client needs with integrated AI-driven insights.'}
+                </p>
+              </div>
+
+              {/* Two-column inner: problem + outcome */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9CA3AF', margin: '0 0 8px' }}>The Problem</p>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', lineHeight: '1.6em', color: '#374151', margin: 0 }}>
+                    Manual effort in data management causing delays and inconsistent client reporting.
+                  </p>
+                </div>
+                <div>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9CA3AF', margin: '0 0 8px' }}>Expected Outcome</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {outcomePoints.map((pt, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: 'rgba(0,234,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <svg width="8" height="8" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3.5" stroke="#00EAFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </div>
+                        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#374151' }}>{pt}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
               </div>
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px' }}>
+
+              {/* Core Goal + Integrations pills */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <div style={{ backgroundColor: 'rgba(0,234,255,0.08)', border: '1px solid rgba(0,234,255,0.2)', borderRadius: '8px', padding: '8px 14px' }}>
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#0E7490' }}>Core Goal: </span>
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '12px', color: '#0E7490' }}>Real-time Dashboard</span>
+                </div>
+                <div style={{ backgroundColor: '#F3F4F6', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '8px 14px' }}>
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280' }}>Integrations: </span>
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '12px', color: '#374151' }}>{integrationText}</span>
+                </div>
+              </div>
+
+              {/* Data sources (if any selected) */}
+              {selectedSources.length > 0 && (
+                <div>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9CA3AF', margin: '0 0 8px' }}>Data Sources</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {selectedSources.map(s => (
+                      <span key={s.id} style={{ backgroundColor: 'rgba(0,234,255,0.08)', border: '1px solid rgba(0,234,255,0.25)', borderRadius: '6px', padding: '3px 10px', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '12px', color: '#1F2937', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {s.icon} {s.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right: Implementation Timeline */}
+            <div style={{ backgroundColor: '#1B2533', borderRadius: '16px', padding: '28px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg,#00EAFF,#3B82F6,#10B981)' }} />
+
+              <h3 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '16px', color: '#FFFFFF', margin: '0 0 24px' }}>Implementation</h3>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
+                {/* Completed */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#00E5FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 0 12px rgba(0,229,255,0.4)' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <div>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', margin: '0 0 2px' }}>Completed</p>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#FFFFFF', margin: 0 }}>AI Calculation Complete</p>
+                  </div>
+                </div>
+
+                {/* Next Phase */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                  <div>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', margin: '0 0 2px' }}>Next Phase</p>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#FFFFFF', margin: '0 0 2px' }}>Setup Time: 2-3 Days</p>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#64748B', margin: 0 }}>Engineer assigned</p>
+                  </div>
+                </div>
+
+                {/* Target Date */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </div>
+                  <div>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', margin: '0 0 2px' }}>Target Date</p>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#00E5FF', margin: 0 }}>Deployment: {targetDate}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px', marginTop: '24px' }}>
                 <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', margin: '0 0 4px' }}>Booking Reference</p>
-                <p style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '16px', color: '#00EAFF', margin: 0 }}>Assigned after confirmation</p>
+                <p style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '15px', color: '#00E5FF', margin: 0 }}>Assigned after confirmation</p>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div style={{ marginTop: '24px', backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <button onClick={onBack} style={{ backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#1F2937' }}>
-          Save Draft
-        </button>
-        <div className="hidden md:block text-[13px] text-[#64748B] font-medium">
-          <strong className="text-[#1F2937]">TIP:</strong> If you decided to get support, save as draft then you an start where you left
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-          {error && <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#EF4444', margin: 0 }}>⚠️ {error}</p>}
-          <button onClick={handleConfirm} disabled={confirming} style={{ backgroundColor: '#00c2ff', borderRadius: '12px', border: 'none', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px', cursor: confirming ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#FFFFFF', opacity: confirming ? 0.7 : 1 }}>
-            {confirming ? <><svg style={{ width: 16, height: 16, animation: 'spin .8s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>Confirming...</> : 'Confirm Booking'}
-          </button>
+          {/* ── Two support cards ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }} className="aiapps-support-grid">
+
+            {/* Left: We've Got You Covered */}
+            <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '20px', display: 'flex', gap: '14px' }}>
+              <div style={{ width: '40px', height: '40px', backgroundColor: 'rgba(0,234,255,0.1)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+              </div>
+              <div style={{ flex: 1 }}>
+                <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#1F2937', margin: '0 0 6px' }}>We&apos;ve Got You Covered</h4>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', lineHeight: '1.55em', color: '#6B7280', margin: '0 0 14px' }}>
+                  Once confirmed, our deployment engineers will review the flow for edge cases. You&apos;ll receive a notification within 4 hours confirming the start of the production build.
+                </p>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                  <button style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', color: '#00EAFF', cursor: 'pointer', padding: 0 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16h16V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    Create Ticket
+                  </button>
+                  <button style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', color: '#00EAFF', cursor: 'pointer', padding: 0 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    Schedule Meeting
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Already know what you need? */}
+            <div style={{ backgroundColor: 'rgba(0,234,255,0.06)', border: '1px solid rgba(0,234,255,0.12)', borderRadius: '16px', padding: '20px', display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer' }}>
+              <div style={{ width: '40px', height: '40px', backgroundColor: '#FFFFFF', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </div>
+              <div style={{ flex: 1 }}>
+                <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#1F2937', margin: '0 0 4px' }}>Already know what you need?</h4>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', lineHeight: '1.5em', color: '#6B7280', margin: 0 }}>Jump ahead and set up your tool credentials.</p>
+              </div>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+          </div>
+
+          {/* ── Draft saved toast ── */}
+          {draftSaved && (
+            <div style={{ backgroundColor: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: '12px', padding: '12px 16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <div>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '13px', color: '#065F46', margin: 0 }}>Draft saved!</p>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#047857', margin: 0 }}>Reference: <strong>{draftSaved}</strong> — resume from your Bookings dashboard.</p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Bottom action bar ── */}
+          <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.07)', flexWrap: 'wrap', marginBottom: '40px' }}>
+            {/* Save Draft */}
+            <button onClick={handleSaveDraft} disabled={savingDraft} style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '11px 20px', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '14px', color: '#1F2937', cursor: savingDraft ? 'not-allowed' : 'pointer', flexShrink: 0, opacity: savingDraft ? 0.7 : 1 }}>
+              {savingDraft ? (
+                <><svg style={{ width: 14, height: 14, animation: 'spin .8s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Saving...</>
+              ) : (
+                <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save Draft</>
+              )}
+            </button>
+
+            {/* TIP text */}
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#6B7280', margin: 0, flex: 1, textAlign: 'center' }}>
+              <strong style={{ color: '#1F2937', fontWeight: 700 }}>TIP:</strong> If you decided to get support, save as draft then you can start where you left
+            </p>
+
+            {/* Confirm Booking */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
+              {error && <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#EF4444', margin: 0 }}>⚠️ {error}</p>}
+              <button onClick={handleConfirm} disabled={confirming} style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#00EAFF', border: 'none', borderRadius: '10px', padding: '11px 24px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#1F2937', cursor: confirming ? 'not-allowed' : 'pointer', opacity: confirming ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                {confirming ? (
+                  <><svg style={{ width: 16, height: 16, animation: 'spin .8s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Confirming...</>
+                ) : (
+                  <>Confirm Booking<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></>
+                )}
+              </button>
+            </div>
+          </div>
+
         </div>
       </div>
     </>
   );
 }
+
 
 // ─── Success Screen ───────────────────────────────────────────────────────────
 function SuccessScreen({ onReset }: { onReset: () => void }) {
@@ -627,7 +847,7 @@ function SuccessScreen({ onReset }: { onReset: () => void }) {
 // ─── Main Export ──────────────────────────────────────────────────────────────
 import { HeaderBar } from './HeaderBar';
 
-const DEFAULT_FORM: AiAppsForm = { description: '', dataSources: ['supabase'], otherSource: '' };
+const DEFAULT_FORM: AiAppsForm = { description: '', dataSources: ['supabase'], otherSources: [] };
 
 export function AiAppsClient() {
   const [step, setStep] = useState<1 | 2 | 3>(1);

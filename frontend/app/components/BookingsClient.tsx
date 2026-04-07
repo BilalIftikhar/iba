@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-
+import React, { useState, useEffect } from 'react';
+import { fetchBookings } from '../lib/api';
 
 // ─── Icons ───────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ import { MessengerPopup } from './MessengerPopup';
 
 // ─── Stat Card ────────────────────────────────────────────────────
 function StatCard({ label, value, trend, trendUp, icon, iconColor, bgHighlight }: {
-    label: string; value: string; trend?: string; trendUp?: boolean;
+    label: string; value: string | number; trend?: string; trendUp?: boolean;
     icon: React.ReactNode; iconColor: string; bgHighlight: string;
 }) {
     return (
@@ -84,24 +84,21 @@ function StatCard({ label, value, trend, trendUp, icon, iconColor, bgHighlight }
 
 // ─── Pipeline Fleet Manager ───────────────────────────────────────
 type TabKey = 'deployed' | 'review' | 'drafts';
-interface PipelineRow { name: string; node: string; version: string; status: 'Active' | 'Deployed'; efficiency: number; barColor: string; icon: React.ReactNode; iconBg: string; statusColor: string; }
+interface PipelineRow {
+    id: string;
+    name: string;
+    node: string;
+    version: string;
+    status: string;
+    efficiency: number;
+    barColor: string;
+    icon: React.ReactNode;
+    iconBg: string;
+    statusColor: string;
+    rawStatus: string;
+}
 
-const tableRows: PipelineRow[] = [
-    {
-        name: 'Lead Enrichment Pipeline', node: 'US-EAST-1', version: 'v2.4.1',
-        status: 'Active', efficiency: 92, barColor: '#00c2ff',
-        icon: <IconShare cls="w-5 h-5" />, iconBg: 'bg-[#e0fcf9] text-[#00c2ff]',
-        statusColor: 'text-emerald-500 bg-emerald-50',
-    },
-    {
-        name: 'Data Sync Core v4', node: 'EU-CENTRAL-1', version: 'v4.0.0',
-        status: 'Deployed', efficiency: 78, barColor: '#3b82f6',
-        icon: <IconStack cls="w-5 h-5" />, iconBg: 'bg-[#ebf4ff] text-blue-500',
-        statusColor: 'text-blue-500 bg-blue-50',
-    },
-];
-
-function PipelineFleetManager({ isMobile, onStopRequest, onShowSummary }: { isMobile?: boolean; onStopRequest?: () => void; onShowSummary?: () => void }) {
+function PipelineFleetManager({ rows, isMobile, onStopRequest, onShowSummary }: { rows: PipelineRow[], isMobile?: boolean; onStopRequest?: () => void; onShowSummary?: () => void }) {
     const [tab, setTab] = useState<TabKey>('deployed');
     const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
     const [openMessengerIndex, setOpenMessengerIndex] = useState<number | null>(null);
@@ -110,6 +107,13 @@ function PipelineFleetManager({ isMobile, onStopRequest, onShowSummary }: { isMo
         { key: 'review', label: 'Review' },
         { key: 'drafts', label: 'Drafts' },
     ];
+
+    const filteredRows = rows.filter(r => {
+        if (tab === 'deployed') return r.rawStatus === 'deployed';
+        if (tab === 'review') return r.rawStatus === 'in_review' || r.rawStatus === 'in_progress' || r.rawStatus === 'booked';
+        if (tab === 'drafts') return r.rawStatus === 'draft';
+        return true;
+    });
 
     return (
         <div className="bg-white rounded-[20px] border border-slate-100 shadow-sm mt-8">
@@ -136,89 +140,103 @@ function PipelineFleetManager({ isMobile, onStopRequest, onShowSummary }: { isMo
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                        {tableRows.map((row, i) => (
-                            <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${row.iconBg}`}>
-                                            {row.icon}
+                        {filteredRows.length === 0 ? (
+                            <tr>
+                                <td colSpan={4} className="px-6 py-12 text-center">
+                                    <div className="flex flex-col items-center justify-center gap-2">
+                                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
+                                            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
                                         </div>
-                                        <div>
-                                            <p className="text-[13px] font-bold text-slate-700">{row.name}</p>
-                                            <p className="text-[11px] text-[#94A3B8] mt-0.5">Node: {row.node} • {row.version}</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-[20px] text-[11px] font-bold ${row.statusColor}`}>
-                                        <div className={`w-1.5 h-1.5 rounded-full bg-current`} />
-                                        {row.status}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3 max-w-[200px]">
-                                        <div className="flex-1 bg-slate-100 h-1 rounded-full overflow-hidden">
-                                            <div className="h-1 rounded-full" style={{ width: `${row.efficiency}%`, backgroundColor: row.barColor }} />
-                                        </div>
-                                        <span className="text-[12px] font-bold text-slate-700 w-8">{row.efficiency}%</span>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                        {tab !== 'drafts' && (
-                                            <div className="relative z-20">
-                                                <button 
-                                                    onClick={() => setOpenMessengerIndex(openMessengerIndex === i ? null : i)}
-                                                    className={`flex items-center gap-2 px-4 py-2 rounded-[10px] text-[13px] font-bold transition-colors ${openMessengerIndex === i ? 'bg-[#E0FCF9] text-[#00c2ff]' : 'bg-[#F8FAFC] text-slate-600 hover:bg-slate-100/80'}`}
-                                                >
-                                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                                                    Message
-                                                </button>
-                                                <MessengerPopup 
-                                                    isOpen={openMessengerIndex === i} 
-                                                    onClose={() => setOpenMessengerIndex(null)} 
-                                                />
-                                            </div>
-                                        )}
-                                        {tab === 'deployed' && (
-                                            <>
-                                                <button 
-                                                    onClick={onStopRequest}
-                                                    className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#F8FAFC] text-slate-400 hover:text-slate-600 hover:bg-slate-100/80 transition-colors"
-                                                >
-                                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" /></svg>
-                                                </button>
-                                                <div className="relative">
-                                                    <button 
-                                                        onClick={() => setOpenMenuIndex(openMenuIndex === i ? null : i)}
-                                                        className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#F8FAFC] text-slate-400 hover:text-slate-600 hover:bg-slate-100/80 transition-colors"
-                                                    >
-                                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>
-                                                    </button>
-                                                    
-                                                    {openMenuIndex === i && (
-                                                        <>
-                                                            <div className="fixed inset-0 z-10" onClick={() => setOpenMenuIndex(null)} />
-                                                            <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-100 rounded-xl shadow-xl z-20 overflow-hidden">
-                                                                <button 
-                                                                    onClick={() => {
-                                                                        onShowSummary?.();
-                                                                        setOpenMenuIndex(null);
-                                                                    }}
-                                                                    className="w-full px-4 py-2.5 text-left text-[13px] font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-                                                                >
-                                                                    Show Summary
-                                                                </button>
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </>
-                                        )}
+                                        <p className="text-[15px] font-bold text-slate-700">No bookings found</p>
+                                        <p className="text-[13px] text-slate-500">There are no bookings matching the selected tab.</p>
                                     </div>
                                 </td>
                             </tr>
-                        ))}
+                        ) : (
+                            filteredRows.map((row, i) => (
+                                <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${row.iconBg}`}>
+                                                {row.icon}
+                                            </div>
+                                            <div>
+                                                <p className="text-[13px] font-bold text-slate-700">{row.name.substring(0, 32)}{row.name.length > 32 ? '...' : ''}</p>
+                                                <p className="text-[11px] text-[#94A3B8] mt-0.5">ID: {row.id} • {row.version}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-[20px] text-[11px] font-bold ${row.statusColor}`}>
+                                            <div className={`w-1.5 h-1.5 rounded-full bg-current`} />
+                                            {row.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3 max-w-[200px]">
+                                            <div className="flex-1 bg-slate-100 h-1 rounded-full overflow-hidden">
+                                                <div className="h-1 rounded-full" style={{ width: `${row.efficiency}%`, backgroundColor: row.barColor }} />
+                                            </div>
+                                            <span className="text-[12px] font-bold text-slate-700 w-8">{row.efficiency}%</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            {tab !== 'drafts' && (
+                                                <div className="relative z-20">
+                                                    <button 
+                                                        onClick={() => setOpenMessengerIndex(openMessengerIndex === i ? null : i)}
+                                                        className={`flex items-center gap-2 px-4 py-2 rounded-[10px] text-[13px] font-bold transition-colors ${openMessengerIndex === i ? 'bg-[#E0FCF9] text-[#00c2ff]' : 'bg-[#F8FAFC] text-slate-600 hover:bg-slate-100/80'}`}
+                                                    >
+                                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                                        Message
+                                                    </button>
+                                                    <MessengerPopup 
+                                                        isOpen={openMessengerIndex === i} 
+                                                        onClose={() => setOpenMessengerIndex(null)} 
+                                                    />
+                                                </div>
+                                            )}
+                                            {tab === 'deployed' && (
+                                                <>
+                                                    <button 
+                                                        onClick={onStopRequest}
+                                                        className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#F8FAFC] text-slate-400 hover:text-slate-600 hover:bg-slate-100/80 transition-colors"
+                                                    >
+                                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" /></svg>
+                                                    </button>
+                                                    <div className="relative">
+                                                        <button 
+                                                            onClick={() => setOpenMenuIndex(openMenuIndex === i ? null : i)}
+                                                            className="w-8 h-8 flex items-center justify-center rounded-[10px] bg-[#F8FAFC] text-slate-400 hover:text-slate-600 hover:bg-slate-100/80 transition-colors"
+                                                        >
+                                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>
+                                                        </button>
+                                                        
+                                                        {openMenuIndex === i && (
+                                                            <>
+                                                                <div className="fixed inset-0 z-10" onClick={() => setOpenMenuIndex(null)} />
+                                                                <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-100 rounded-xl shadow-xl z-20 overflow-hidden">
+                                                                    <button 
+                                                                        onClick={() => {
+                                                                            onShowSummary?.();
+                                                                            setOpenMenuIndex(null);
+                                                                        }}
+                                                                        className="w-full px-4 py-2.5 text-left text-[13px] font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                                                                    >
+                                                                        Show Summary
+                                                                    </button>
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -230,12 +248,82 @@ function PipelineFleetManager({ isMobile, onStopRequest, onShowSummary }: { isMo
 export function BookingsClient() {
     const [isStopModalOpen, setIsStopModalOpen] = useState(false);
     const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+    const [bookings, setBookings] = useState<any[]>([]);
+
+    useEffect(() => {
+        fetchBookings().then((res: any) => {
+            if (Array.isArray(res)) {
+                setBookings(res);
+            } else if (res && res.data) {
+                setBookings(res.data);
+            }
+        }).catch(console.error);
+    }, []);
 
     const handleConfirmStop = () => {
         setIsStopModalOpen(false);
         // Add actual stop logic here if needed
     };
 
+    const formatToRow = (b: any): PipelineRow => {
+        let statusColor = 'text-slate-500 bg-slate-50';
+        let barColor = '#cbd5e1';
+        let eff = 0;
+        
+        const rawStatus = b.status || 'draft';
+        const type = b.type || 'automation';
+
+        if (rawStatus === 'deployed') {
+            statusColor = 'text-blue-500 bg-blue-50';
+            barColor = '#3b82f6';
+            eff = Math.floor(Math.random() * 20) + 80;
+        } else if (rawStatus === 'in_progress') {
+            statusColor = 'text-amber-500 bg-amber-50';
+            barColor = '#f59e0b';
+            eff = Math.floor(Math.random() * 30) + 40;
+        } else if (rawStatus === 'booked' || rawStatus === 'in_review') {
+            statusColor = 'text-purple-500 bg-purple-50';
+            barColor = '#a855f7';
+            eff = 10;
+        } else if (rawStatus === 'draft') {
+            statusColor = 'text-emerald-500 bg-emerald-50';
+            barColor = '#10b981';
+            eff = 0;
+        }
+
+        let icon = <IconStack cls="w-5 h-5" />;
+        let iconBg = 'bg-[#ebf4ff] text-blue-500';
+        if (type === 'automation') {
+            icon = <IconShare cls="w-5 h-5" />;
+            iconBg = 'bg-[#e0fcf9] text-[#00c2ff]';
+        }
+        
+        let name = b.title || b.use_case;
+        if (!name || name === 'null') {
+            name = 'Untitled Booking';
+        }
+
+        return {
+            id: b.id || 'N/A',
+            name: name,
+            node: type === 'automation' ? 'US-EAST-1' : 'EU-CENTRAL-1',
+            version: type.replace('_', ' ').toUpperCase(),
+            status: rawStatus.replace('_', ' ').toUpperCase(),
+            efficiency: eff,
+            barColor,
+            icon,
+            iconBg,
+            statusColor,
+            rawStatus: rawStatus
+        };
+    };
+
+    const rows = bookings.map(formatToRow);
+    const totalBookings = bookings.length;
+    const countDeployed = bookings.filter(b => b.status === 'deployed').length;
+    const countInProgress = bookings.filter(b => b.status === 'in_progress').length;
+    const countInReview = bookings.filter(b => b.status === 'in_review' || b.status === 'booked').length;
+    const countDrafts = bookings.filter(b => b.status === 'draft').length;
 
     return (
         <div className="min-h-full bg-slate-100/50 flex flex-col items-center">
@@ -260,20 +348,21 @@ export function BookingsClient() {
 
                     {/* Stat Cards Row */}
                     <div className="flex flex-nowrap gap-4 w-full justify-between pb-2">
-                        <StatCard label="Total Bookings" value="128" trend="+12%" trendUp={true}
+                        <StatCard label="Total Bookings" value={totalBookings}
                             iconColor="text-[#00c2ff]" icon={<IconChartSquare cls="w-4 h-4" />} bgHighlight="bg-[#ebfcfa]" />
-                        <StatCard label="Deployed" value="84" trend="+5%" trendUp={true}
+                        <StatCard label="Deployed" value={countDeployed}
                             iconColor="text-blue-500" icon={<IconCheckSquare cls="w-4 h-4" />} bgHighlight="bg-[#eff6ff]" />
-                        <StatCard label="In Progress" value="22" trend="-2%" trendUp={false}
+                        <StatCard label="In Progress" value={countInProgress}
                             iconColor="text-amber-500" icon={<IconDotsSquare cls="w-4 h-4" />} bgHighlight="bg-[#fffbeb]" />
-                        <StatCard label="In Review" value="12" trend="+8%" trendUp={true}
+                        <StatCard label="In Review" value={countInReview}
                             iconColor="text-purple-500" icon={<IconReviewSquare cls="w-4 h-4" />} bgHighlight="bg-[#faf5ff]" />
-                        <StatCard label="Drafts" value="3" trend="+2%" trendUp={true}
+                        <StatCard label="Drafts" value={countDrafts}
                             iconColor="text-emerald-500" icon={<IconDraftSquare cls="w-4 h-4" />} bgHighlight="bg-[#ecfdf5]" />
                     </div>
 
                     {/* Pipeline Fleet Manager */}
                     <PipelineFleetManager 
+                        rows={rows}
                         onStopRequest={() => setIsStopModalOpen(true)} 
                         onShowSummary={() => setIsSummaryModalOpen(true)} 
                     />
@@ -297,19 +386,20 @@ export function BookingsClient() {
 
                         {/* Flex card horizontal scroll */}
                         <div className="flex flex-col gap-3">
-                            <StatCard label="Total Bookings" value="128" trend="+12%" trendUp={true} iconColor="text-[#00c2ff]" icon={<IconChartSquare cls="w-4 h-4" />} bgHighlight="bg-[#ebfcfa]" />
+                            <StatCard label="Total Bookings" value={totalBookings} iconColor="text-[#00c2ff]" icon={<IconChartSquare cls="w-4 h-4" />} bgHighlight="bg-[#ebfcfa]" />
                             <div className="grid grid-cols-2 gap-3">
-                                <StatCard label="Deployed" value="84" trend="+5%" trendUp={true} iconColor="text-blue-500" icon={<IconCheckSquare cls="w-4 h-4" />} bgHighlight="bg-[#eff6ff]" />
-                                <StatCard label="In Progress" value="22" trend="-2%" trendUp={false} iconColor="text-amber-500" icon={<IconDotsSquare cls="w-4 h-4" />} bgHighlight="bg-[#fffbeb]" />
+                                <StatCard label="Deployed" value={countDeployed} iconColor="text-blue-500" icon={<IconCheckSquare cls="w-4 h-4" />} bgHighlight="bg-[#eff6ff]" />
+                                <StatCard label="In Progress" value={countInProgress} iconColor="text-amber-500" icon={<IconDotsSquare cls="w-4 h-4" />} bgHighlight="bg-[#fffbeb]" />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <StatCard label="In Review" value="12" trend="+8%" trendUp={true} iconColor="text-purple-500" icon={<IconReviewSquare cls="w-4 h-4" />} bgHighlight="bg-[#faf5ff]" />
-                                <StatCard label="Drafts" value="3" trend="+2%" trendUp={true} iconColor="text-emerald-500" icon={<IconDraftSquare cls="w-4 h-4" />} bgHighlight="bg-[#ecfdf5]" />
+                                <StatCard label="In Review" value={countInReview} iconColor="text-purple-500" icon={<IconReviewSquare cls="w-4 h-4" />} bgHighlight="bg-[#faf5ff]" />
+                                <StatCard label="Drafts" value={countDrafts} iconColor="text-emerald-500" icon={<IconDraftSquare cls="w-4 h-4" />} bgHighlight="bg-[#ecfdf5]" />
                             </div>
                         </div>
 
                         {/* Pipeline Fleet Manager */}
                         <PipelineFleetManager 
+                            rows={rows}
                             isMobile 
                             onStopRequest={() => setIsStopModalOpen(true)} 
                             onShowSummary={() => setIsSummaryModalOpen(true)}

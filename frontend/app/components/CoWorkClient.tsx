@@ -67,6 +67,7 @@ const css = `
 
     .cw-content-header { padding: 32px 16px 16px !important; }
     .cw-card-pad { padding: 20px !important; }
+    .cw-support-grid { grid-template-columns: 1fr !important; }
   }
 `;
 
@@ -359,7 +360,9 @@ function StepTools({ form, setForm, onNext, onBack }: { form: CoWorkForm; setFor
 /* ─── Step 3: Review & Book ─────────────────────────────────────────────────── */
 function StepConfirm({ form, onBack, onDeploy }: { form: CoWorkForm; onBack: () => void; onDeploy: (bookingId: string) => void }) {
   const [deploying, setDeploying] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [error, setError] = useState('');
+  const [draftSaved, setDraftSaved] = useState<string | null>(null); // booking ID after save
 
   const handleDeploy = async () => {
     setDeploying(true);
@@ -381,82 +384,254 @@ function StepConfirm({ form, onBack, onDeploy }: { form: CoWorkForm; onBack: () 
     }
   };
 
+  const handleSaveDraft = async () => {
+    setSavingDraft(true);
+    setError('');
+    try {
+      const { saveDraft } = await import('../lib/api');
+      const result: any = await saveDraft({
+        type: 'cowork',
+        title: form.useCase ? `Co-Work: ${form.useCase.substring(0, 40)}` : 'AI Co-Work (Draft)',
+        use_case: form.useCase,
+        tools_list: [...form.tools, ...(form.chatClient ? [form.chatClient] : [])],
+        draft_state: {
+          step: 3,
+          useCase: form.useCase,
+          chatClient: form.chatClient,
+          tools: form.tools,
+        },
+      });
+      setDraftSaved(result?.id ?? 'saved');
+      setTimeout(() => setDraftSaved(null), 5000);
+    } catch (e: unknown) {
+      setError((e as Error).message || 'Failed to save draft. Please try again.');
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const integrationText = form.tools.length > 0
+    ? form.tools.slice(0, 3).join(' + ') + (form.chatClient ? ` + ${form.chatClient}` : '')
+    : 'Salesforce + Slack + OpenAI GPT-4o';
+
+  const outcomePoints = [
+    'Automated qualification',
+    '40% faster response time',
+    '24/7 coverage for global leads',
+  ];
+
+  const targetDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
   return (
     <div className="cw-section-pad">
+      {/* ── Title ── */}
       <div className="cw-content-header" style={{ paddingBottom: '24px', paddingTop: '0' }}>
-        <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '28px', lineHeight: '1.2em', color: '#1F2937', margin: '0 0 8px' }}>Review &amp; Confirm</h2>
-        <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', lineHeight: '1.43em', color: '#6B7280', margin: 0 }}>Please verify your project details before we begin the deployment phase.</p>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#00E5FF', margin: '0 0 8px' }}>✦ Final Step</p>
+        <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '32px', lineHeight: '1.2em', color: '#1F2937', margin: '0 0 8px' }}>Review &amp; Confirm</h2>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', lineHeight: '1.5em', color: '#6B7280', margin: 0 }}>Please verify your project details before we begin the deployment phase.</p>
       </div>
 
-      <div className="cw-review-grid">
-        {/* Left */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '16px', padding: '24px', boxShadow: '0px 1px 2px rgba(0,0,0,0.05)' }}>
-            <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9CA3AF', margin: '0 0 8px' }}>Your Use Case</p>
-            <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', lineHeight: '1.6em', color: '#4B5563', margin: '0 0 20px' }}>{form.useCase || 'High manual effort in lead triaging causing delays in sales response time.'}</p>
-            <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9CA3AF', margin: '0 0 8px' }}>AI Client</p>
-            <div style={{ display: 'inline-flex', backgroundColor: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.25)', borderRadius: '6px', padding: '5px 12px', marginBottom: '20px' }}>
-              <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '13px', color: '#1F2937' }}>{form.chatClient || 'Claude 3.5 Sonnet'}</span>
-            </div>
-            <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9CA3AF', margin: '0 0 8px' }}>Selected Tools</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {form.tools.length > 0 ? form.tools.map(t => (
-                <span key={t} style={{ backgroundColor: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.25)', borderRadius: '6px', padding: '4px 10px', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '12px', color: '#1F2937' }}>{t}</span>
-              )) : <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#9CA3AF' }}>No tools selected</span>}
+      {/* ── Two-column grid ── */}
+      <div className="cw-review-grid" style={{ marginBottom: '16px' }}>
+
+        {/* Left: Summary Card */}
+        <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '16px', padding: '28px', boxShadow: '0px 1px 3px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '36px', height: '36px', backgroundColor: 'rgba(0,229,255,0.1)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00E5FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </div>
+              <div>
+                <h3 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '16px', color: '#1F2937', margin: 0 }}>
+                  Summary: {form.useCase ? form.useCase.split(' ').slice(0, 4).join(' ') + '...' : 'Smart Lead Qualification'}
+                </h3>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', color: '#9CA3AF', margin: '2px 0 0' }}>Project Reference: #AI-2026-X4</p>
+              </div>
             </div>
           </div>
 
-          <div style={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '16px', padding: '24px', boxShadow: '0px 1px 2px rgba(0,0,0,0.05)' }}>
-            <div style={{ width: '40px', height: '40px', backgroundColor: 'rgba(0,229,255,0.1)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00E5FF" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 12 11 14 15 10" /></svg>
+          {/* Two-column inner detail */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            {/* The Problem */}
+            <div>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9CA3AF', margin: '0 0 8px' }}>The Problem</p>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', lineHeight: '1.6em', color: '#374151', margin: 0 }}>
+                {form.useCase || 'High manual effort in lead triaging causing delays in sales response time and inconsistent qualification criteria.'}
+              </p>
             </div>
-            <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '18px', color: '#1F2937', margin: '0 0 8px' }}>We&apos;ve Got You Covered</h4>
-            <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', lineHeight: '1.6em', color: '#475569', margin: '0 0 16px' }}>
-              Once confirmed, our deployment engineers will review the flow for edge cases. You&apos;ll receive a notification within 4 hours confirming the production build.
-            </p>
-            <div style={{ display: 'flex', gap: '20px' }}>
-              <button style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '13px', color: '#00E5FF', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16h16V8z" /><polyline points="14 2 14 8 20 8" /></svg>Create Ticket
-              </button>
-              <button style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '13px', color: '#00E5FF', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>Schedule Meeting
-              </button>
+            {/* Expected Outcome */}
+            <div>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9CA3AF', margin: '0 0 8px' }}>Expected Outcome</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {outcomePoints.map((pt, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: 'rgba(0,229,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <svg width="8" height="8" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3.5" stroke="#00E5FF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </div>
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#374151' }}>{pt}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
+
+          {/* Key Integration */}
+          <div>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9CA3AF', margin: '0 0 8px' }}>Key Integration</p>
+            <div style={{ backgroundColor: '#F0FDFF', border: '1px solid #E0F2F7', borderRadius: '8px', padding: '10px 14px', display: 'inline-block' }}>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '13px', color: '#0E7490' }}>{integrationText}</span>
+            </div>
+          </div>
+
+          {/* AI Client selected */}
+          {form.chatClient && (
+            <div>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9CA3AF', margin: '0 0 8px' }}>AI Client</p>
+              <div style={{ display: 'inline-flex', backgroundColor: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.25)', borderRadius: '6px', padding: '5px 12px' }}>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '13px', color: '#1F2937' }}>{form.chatClient}</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Right: Dark timeline */}
-        <div style={{ backgroundColor: '#1B2533', borderRadius: '24px', padding: '28px', position: 'relative', overflow: 'hidden' }}>
+        {/* Right: Implementation Timeline */}
+        <div style={{ backgroundColor: '#1B2533', borderRadius: '16px', padding: '28px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '0' }}>
+          {/* Rainbow top bar */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg,#00EAFF,#3B82F6,#10B981)' }} />
-          <div style={{ position: 'relative', borderLeft: '2px solid rgba(255,255,255,0.1)', paddingLeft: '24px', display: 'flex', flexDirection: 'column', gap: '28px', marginBottom: '24px' }}>
-            {[{ done: true, status: 'Completed', label: 'AI Calculation Complete', sub: '' }, { done: false, status: 'Next Phase', label: 'Setup Time: 2–3 Days', sub: 'Engineer assigned' }, { done: false, status: 'Target Date', label: 'Deployment: Est. 2 Weeks', sub: '' }].map((item, i) => (
-              <div key={i} style={{ position: 'relative' }}>
-                <div style={{ position: 'absolute', left: '-31px', top: '2px', width: item.done ? '12px' : '8px', height: item.done ? '12px' : '8px', borderRadius: '50%', backgroundColor: item.done ? '#00E5FF' : 'transparent', border: item.done ? 'none' : '2px solid #475569', boxShadow: item.done ? '0 0 10px rgba(0,234,255,0.6)' : 'none' }} />
-                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', margin: '0 0 3px' }}>{item.status}</p>
-                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '14px', color: '#fff', margin: 0 }}>{item.label}</p>
-                {item.sub && <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '12px', color: '#64748B', margin: '2px 0 0' }}>{item.sub}</p>}
+
+          <h3 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '16px', color: '#FFFFFF', margin: '0 0 24px' }}>Implementation Timeline</h3>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Row 1: AI Calculation Complete */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#00E5FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 0 12px rgba(0,229,255,0.4)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
-            ))}
+              <div>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#FFFFFF', margin: '0 0 2px' }}>AI Calculation Complete</p>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#64748B', margin: 0 }}>Models verified and token usage estimated</p>
+              </div>
+            </div>
+
+            {/* Row 2: Setup Time */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#FFFFFF', margin: '0 0 2px' }}>Setup Time</p>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#64748B', margin: 0 }}>Expected duration: 2-3 days</p>
+              </div>
+            </div>
+
+            {/* Row 3: Deployment */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </div>
+              <div>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#00E5FF', margin: '0 0 2px' }}>Deployment</p>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#64748B', margin: 0 }}>{targetDate}</p>
+              </div>
+            </div>
           </div>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px' }}>
+
+          {/* Booking Reference */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px', marginTop: '24px' }}>
             <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748B', margin: '0 0 4px' }}>Booking Reference</p>
             <p style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '16px', color: '#00E5FF', margin: 0 }}>Assigned after confirmation</p>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <div style={{ marginTop: '24px', backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <button onClick={onBack} style={{ backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#1F2937' }}>
-          Save Draft
-        </button>
-        <div className="hidden md:block text-[13px] text-[#64748B] font-medium">
-          <strong className="text-[#1F2937]">TIP:</strong> If you decided to get support, save as draft then you an start where you left
+      {/* ── Support cards: two-column grid ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }} className="cw-support-grid">
+
+        {/* Left: We've Got You Covered */}
+        <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '20px', display: 'flex', gap: '14px' }}>
+          <div style={{ width: '40px', height: '40px', backgroundColor: 'rgba(0,229,255,0.1)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00E5FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#1F2937', margin: '0 0 6px' }}>We&apos;ve Got You Covered</h4>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', lineHeight: '1.55em', color: '#6B7280', margin: '0 0 14px' }}>
+              Once confirmed, our deployment engineers will review the flow for edge cases. You&apos;ll receive a notification within 4 hours confirming the start of the production build.
+            </p>
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <button style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', color: '#00E5FF', cursor: 'pointer', padding: 0 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16h16V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Create Ticket
+              </button>
+              <button style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', color: '#00E5FF', cursor: 'pointer', padding: 0 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Schedule Meeting
+              </button>
+            </div>
+          </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+
+        {/* Right: Already know what you need? */}
+        <div style={{ backgroundColor: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.12)', borderRadius: '16px', padding: '20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '40px', height: '40px', backgroundColor: '#FFFFFF', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00E5FF" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#1F2937', margin: '0 0 4px' }}>Already know what you need?</h4>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', lineHeight: '1.5em', color: '#6B7280', margin: 0 }}>Jump ahead and set up your tool credentials.</p>
+          </div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00E5FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </div>
+      </div>
+
+      {/* ── Draft saved toast ── */}
+      {draftSaved && (
+        <div style={{ backgroundColor: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: '12px', padding: '12px 16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <div>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '13px', color: '#065F46', margin: 0 }}>Draft saved!</p>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#047857', margin: 0 }}>Reference: <strong>{draftSaved}</strong> — you can resume from your Bookings dashboard.</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bottom action bar — Figma 1492-680 exact match ── */}
+      <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.07)', flexWrap: 'wrap', marginBottom: '40px' }}>
+        {/* Left: Save Draft */}
+        <button onClick={handleSaveDraft} disabled={savingDraft} style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '11px 20px', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '14px', color: '#1F2937', cursor: savingDraft ? 'not-allowed' : 'pointer', flexShrink: 0, opacity: savingDraft ? 0.7 : 1 }}>
+          {savingDraft ? (
+            <>
+              <svg style={{ width: 14, height: 14, animation: 'spin .8s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              Saving...
+            </>
+          ) : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save Draft
+            </>
+          )}
+        </button>
+
+        {/* Center: TIP */}
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#6B7280', margin: 0, flex: 1, textAlign: 'center' }}>
+          <strong style={{ color: '#1F2937', fontWeight: 700 }}>TIP:</strong> If you decided to get support, save as draft then you can start where you left
+        </p>
+
+        {/* Right: Confirm Booking */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
           {error && <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#EF4444', margin: 0 }}>⚠️ {error}</p>}
-          <button onClick={handleDeploy} disabled={deploying} style={{ backgroundColor: '#00c2ff', borderRadius: '12px', border: 'none', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px', cursor: deploying ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#FFFFFF', opacity: deploying ? 0.7 : 1 }}>
-            {deploying ? <><svg style={{ width: 16, height: 16, animation: 'spin .8s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>Confirming...</> : 'Confirm Booking'}
+          <button onClick={handleDeploy} disabled={deploying} style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#00E5FF', border: 'none', borderRadius: '10px', padding: '11px 24px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#1F2937', cursor: deploying ? 'not-allowed' : 'pointer', opacity: deploying ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+            {deploying ? (
+              <>
+                <svg style={{ width: 16, height: 16, animation: 'spin .8s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                Confirming...
+              </>
+            ) : (
+              <>
+                Confirm Booking
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </>
+            )}
           </button>
         </div>
       </div>

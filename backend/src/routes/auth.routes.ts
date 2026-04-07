@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
 import { sendOtp, verifyOtp } from '../services/otp.service';
 import { OtpPurpose } from '@prisma/client';
+import { authenticate } from '../middleware/auth.middleware';
 
 export const authRouter = Router();
 
@@ -39,7 +40,7 @@ authRouter.post('/signup', async (req, res) => {
         });
 
         // Auto-login to allow protected OTP fetch
-        const access_token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '15m' });
+        const access_token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '20m' });
         const refresh_token = jwt.sign({ userId: user.id }, REFRESH_SECRET, { expiresIn: '30d' });
 
         res.cookie('refresh_token', refresh_token, {
@@ -80,7 +81,7 @@ authRouter.post('/login', async (req, res) => {
         }
 
         // Generate Access Token (15m)
-        const access_token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '15m' });
+        const access_token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '20m' });
         
         // Generate Refresh Token (30d)
         const refresh_token = jwt.sign({ userId: user.id }, REFRESH_SECRET, { expiresIn: '30d' });
@@ -117,11 +118,71 @@ authRouter.post('/refresh', async (req, res) => {
             return res.status(401).json({ error: 'User not found' });
         }
 
-        const access_token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '15m' });
+        const access_token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '20m' });
 
         return res.status(200).json({ success: true, access_token });
     } catch (error: any) {
         return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+});
+
+authRouter.get('/me', authenticate, async (req, res) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.auth.userId },
+            select: { id: true, email: true, first_name: true, last_name: true, company_name: true, timezone: true, notification_preferences: true }
+        });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        // Parse preferences securely
+        let preferences = user.notification_preferences as any;
+        if (typeof preferences === 'string') {
+            try { preferences = JSON.parse(preferences); } catch (e) { preferences = {}; }
+        }
+        
+        return res.status(200).json({ success: true, data: { ...user, notification_preferences: preferences || {} } });
+    } catch (error: any) {
+        console.error('[GET /me]', error);
+        return res.status(500).json({ error: 'Failed to fetch user profile' });
+    }
+});
+
+authRouter.patch('/me', authenticate, async (req, res) => {
+    try {
+        const { first_name, last_name, company_name, timezone, notification_preferences, password } = req.body;
+        const updateData: any = {};
+        
+        if (first_name !== undefined) updateData.first_name = first_name;
+        if (last_name !== undefined) updateData.last_name = last_name;
+        if (company_name !== undefined) updateData.company_name = company_name;
+        if (timezone !== undefined) updateData.timezone = timezone;
+        
+        if (notification_preferences !== undefined) {
+             updateData.notification_preferences = notification_preferences;
+        }
+        
+        if (password) {
+            updateData.password_hash = await bcrypt.hash(password, 10);
+        }
+
+        const user = await prisma.user.update({
+            where: { id: req.auth.userId },
+            data: updateData,
+            select: { id: true, email: true, first_name: true, last_name: true, company_name: true, timezone: true, notification_preferences: true }
+        });
+
+        // Parse preferences back explicitly just in case before sending up
+        let preferences = user.notification_preferences as any;
+        if (typeof preferences === 'string') {
+            try { preferences = JSON.parse(preferences); } catch (e) { preferences = {}; }
+        }
+
+        return res.status(200).json({ success: true, data: { ...user, notification_preferences: preferences || {} } });
+    } catch (error: any) {
+        console.error('[PATCH /me]', error);
+        return res.status(500).json({ error: 'Failed to update user profile' });
     }
 });
 
@@ -273,7 +334,7 @@ authRouter.get('/google/callback', async (req, res) => {
         }
 
         // 4. Issue IBA JWTs
-        const access_token  = jwt.sign({ userId: user.id }, JWT_SECRET,     { expiresIn: '15m' });
+        const access_token  = jwt.sign({ userId: user.id }, JWT_SECRET,     { expiresIn: '20m' });
         const refresh_token = jwt.sign({ userId: user.id }, REFRESH_SECRET, { expiresIn: '30d' });
 
         res.cookie('refresh_token', refresh_token, {

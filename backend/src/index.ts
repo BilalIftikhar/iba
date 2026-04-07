@@ -14,6 +14,7 @@ import { messagesRouter } from './routes/messages.routes';
 import { subscriptionsRouter } from './routes/subscriptions.routes';
 import { statsRouter } from './routes/stats.routes';
 import { webhooksRouter } from './routes/webhooks.routes';
+import { teamsRouter } from './routes/teams.routes';
 import { errorHandler } from './middleware/error.middleware';
 
 const app = express();
@@ -83,6 +84,7 @@ app.use(`${API}/workflows`, workflowsRouter);
 app.use(`${API}/messages`, messagesRouter);
 app.use(`${API}/subscriptions`, subscriptionsRouter);
 app.use(`${API}/stats`, statsRouter);
+app.use(`${API}/teams`, teamsRouter);
 
 // ── Error Handler (must be last) ─────────────────────────────
 app.use(errorHandler);

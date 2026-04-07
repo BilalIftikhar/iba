@@ -73,6 +73,23 @@ export async function createBooking<T = unknown>(data: Record<string, unknown>):
     });
 }
 
+/**
+ * Save a booking as a draft, persisting the full multi-step wizard state.
+ * draft_state is stored as JSONB and can be used to restore the form on next visit.
+ */
+export async function saveDraft<T = unknown>(payload: {
+    type: 'automation' | 'cowork' | 'custom_app' | 'implementation';
+    title?: string;
+    use_case?: string;
+    tools_list?: unknown[];
+    draft_state: Record<string, unknown>;
+}): Promise<T> {
+    return apiFetch<T>('/bookings', {
+        method: 'POST',
+        body: JSON.stringify({ ...payload, status: 'draft' })
+    });
+}
+
 // ── Stats endpoints ─────────────────────────────────────────
 
 import type { StatsSummary, RunsResponse } from './types';
@@ -98,4 +115,62 @@ export async function fetchRuns(params?: {
 
     const query = qs.toString() ? `?${qs.toString()}` : '';
     return apiFetch<RunsResponse>(`/stats/runs${query}`);
+}
+
+export async function fetchProfile<T = any>(): Promise<T> {
+    return apiFetch<T>('/auth/me');
+}
+
+export async function updateProfile<T = any>(data: Record<string, unknown>): Promise<T> {
+    return apiFetch<T>('/auth/me', {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+    });
+}
+
+export async function fetchSubscription<T = any>(): Promise<T> {
+    return apiFetch<T>('/subscriptions/me');
+}
+
+export async function fetchTeam<T = any>(): Promise<T[]> {
+    return apiFetch<T[]>('/teams');
+}
+
+export async function inviteTeamMember<T = any>(email: string, role: string): Promise<T> {
+    return apiFetch<T>('/teams', {
+        method: 'POST',
+        body: JSON.stringify({ email, role })
+    });
+}
+
+export async function deleteTeamMember<T = any>(id: string): Promise<T> {
+    return apiFetch<T>(`/teams/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchBookings<T = any>(): Promise<T[]> {
+    return apiFetch<T[]>('/bookings');
+}
+
+export async function fetchCredentials<T = any>(): Promise<T[]> {
+    return apiFetch<T[]>('/credentials');
+}
+
+export async function createCredential<T = unknown>(data: Record<string, unknown>): Promise<T> {
+    return apiFetch<T>('/credentials', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
+}
+
+export async function updateCredential<T = unknown>(id: string, data: Record<string, unknown>): Promise<T> {
+    return apiFetch<T>(`/credentials/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+    });
+}
+
+export async function deleteCredential<T = unknown>(id: string): Promise<T> {
+    return apiFetch<T>(`/credentials/${id}`, {
+        method: 'DELETE'
+    });
 }

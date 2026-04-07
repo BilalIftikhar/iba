@@ -19,6 +19,13 @@ const THINKING_STEPS = [
   'All good. Nice work! ✨',
 ];
 
+// Exact Figma icon (sparkle/stars)
+const SparkleIcon = ({ color = '#4B5563' }: { color?: string }) => (
+  <svg width="15" height="16" viewBox="0 0 15 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+    <path d="M10.8984 6.33331L10.204 4.80553L8.67622 4.11108L10.204 3.41664L10.8984 1.88886L11.5929 3.41664L13.1207 4.11108L11.5929 4.80553L10.8984 6.33331ZM10.8984 14.1111L10.204 12.5833L8.67622 11.8889L10.204 11.1944L10.8984 9.66664L11.5929 11.1944L13.1207 11.8889L11.5929 12.5833L10.8984 14.1111ZM5.34288 12.4444L3.95399 9.38886L0.898438 7.99997L3.95399 6.61108L5.34288 3.55553L6.73177 6.61108L9.78733 7.99997L6.73177 9.38886L5.34288 12.4444ZM5.34288 9.74997L5.89844 8.55553L7.09288 7.99997L5.89844 7.44442L5.34288 6.24997L4.78733 7.44442L3.59288 7.99997L4.78733 8.55553L5.34288 9.74997Z" fill={color}/>
+  </svg>
+);
+
 export function OptimizePromptButton({ onOptimize, disabled, className = '' }: OptimizePromptButtonProps) {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
@@ -58,6 +65,52 @@ export function OptimizePromptButton({ onOptimize, disabled, className = '' }: O
     ? THINKING_STEPS[stepIndex] ?? 'Working the words...'
     : 'Optimize Prompt';
 
+  // Figma gradient: 90deg, #900B09 → #EC931F → #EC2D1F → #99007A
+  const borderGradient = isOptimizing
+    ? 'linear-gradient(90deg, #900B09 0%, #EC931F 39%, #EC2D1F 71%, #99007A 100%)'
+    : done
+    ? 'linear-gradient(90deg, #10b981, #10b981)'
+    : 'linear-gradient(90deg, #900B09 0%, #EC931F 39%, #EC2D1F 71%, #99007A 100%)';
+
+  const textColor = done ? '#10b981' : '#4B5563';
+
+  const wrapStyle: React.CSSProperties = {
+    position: 'relative',
+    display: 'inline-flex',
+    borderRadius: '25px',
+    padding: '2px',
+    background: borderGradient,
+    backgroundSize: isOptimizing ? '300% 300%' : '100% 100%',
+    animation: isOptimizing ? 'gradientShift 2s ease infinite' : 'none',
+    transition: 'all 0.3s ease',
+    cursor: disabled || isOptimizing ? 'not-allowed' : 'pointer',
+  };
+
+  const innerStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    backgroundColor: '#ffffff',
+    border: 'none',
+    borderRadius: '23px',
+    padding: '0 18px',
+    height: '42px',
+    cursor: disabled || isOptimizing ? 'not-allowed' : 'pointer',
+    fontFamily: 'Inter, sans-serif',
+    fontWeight: 500,
+    fontSize: '14px',
+    color: textColor,
+    whiteSpace: 'nowrap',
+    opacity: 1,
+    minWidth: '154px',
+    justifyContent: 'center',
+  };
+
+  const spinStyle: React.CSSProperties = {
+    flexShrink: 0,
+    animation: 'spin 0.8s linear infinite',
+  };
+
   return (
     <>
       <style>{`
@@ -66,92 +119,42 @@ export function OptimizePromptButton({ onOptimize, disabled, className = '' }: O
           50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        @keyframes textFadeIn {
-          from { opacity: 0; transform: translateY(4px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        .optimize-btn-wrap {
-          position: relative;
-          display: inline-flex;
-          border-radius: 14px;
-          padding: 1.5px;
-          background: ${isOptimizing || done ? 'linear-gradient(135deg, #f97316, #e11d48, #d946ef, #8b5cf6)' : 'linear-gradient(135deg, #f97316, #e11d48, #d946ef)'};
-          background-size: ${isOptimizing ? '300% 300%' : '100% 100%'};
-          animation: ${isOptimizing ? 'gradientShift 2s ease infinite' : 'none'};
-          transition: all 0.3s ease;
-        }
-        .optimize-btn-inner {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          background: #fff;
-          border: none;
-          border-radius: 12px;
-          padding: 9px 16px;
-          cursor: ${disabled || isOptimizing ? 'not-allowed' : 'pointer'};
-          font-family: Inter, sans-serif;
-          font-weight: 600;
-          font-size: 13px;
-          color: #1F2937;
-          white-space: nowrap;
-          opacity: ${disabled && !isOptimizing ? 0.5 : 1};
-          transition: background 0.2s;
-          min-width: 160px;
-          justify-content: center;
-        }
-        .optimize-btn-inner:hover {
-          background: ${disabled || isOptimizing ? '#fff' : '#fafafa'};
-        }
-        .thinking-text {
-          animation: textFadeIn 0.2s ease-out;
-          background: linear-gradient(135deg, #f97316, #e11d48, #d946ef);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          font-weight: 700;
+        @keyframes textFadeIn {
+          from { opacity: 0; transform: translateY(3px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
 
-      <div className={`optimize-btn-wrap ${className}`}>
+      <div style={wrapStyle} className={className}>
         <button
-          className="optimize-btn-inner"
+          style={innerStyle}
           onClick={handleClick}
           disabled={disabled || isOptimizing}
           title="Optimize your prompt using AI"
         >
           {isOptimizing ? (
-            <svg
-              style={{ animation: 'spin 0.8s linear infinite', flexShrink: 0 }}
-              width={14}
-              height={14}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="url(#spinGrad)"
-              strokeWidth={2.5}
-            >
-              <defs>
-                <linearGradient id="spinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#f97316" />
-                  <stop offset="100%" stopColor="#e11d48" />
-                </linearGradient>
-              </defs>
+            <svg style={spinStyle} width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#EC931F" strokeWidth={2.5}>
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
           ) : done ? (
-            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <polyline points="20 6 9 17 4 12" />
             </svg>
           ) : (
-            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" strokeWidth={1.5} style={{ flexShrink: 0 }}>
-              <path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5z" stroke="#e11d48" fill="none" />
-              <path d="M19 16l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2L16 19l2.2-.8z" stroke="#f97316" fill="none" />
-            </svg>
+            <SparkleIcon color="#4B5563" />
           )}
-          <span key={label} className={isOptimizing || done ? 'thinking-text' : ''}>
+          <span
+            key={label}
+            style={{
+              animation: 'textFadeIn 0.2s ease-out',
+              color: isOptimizing ? '#900B09' : textColor,
+              fontWeight: isOptimizing ? 600 : 500,
+            }}
+          >
             {label}
           </span>
         </button>
@@ -159,3 +162,5 @@ export function OptimizePromptButton({ onOptimize, disabled, className = '' }: O
     </>
   );
 }
+
+

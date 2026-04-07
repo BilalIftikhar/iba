@@ -1,15 +1,79 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HeaderBar } from './HeaderBar';
+import { fetchProfile, updateProfile, fetchTeam, deleteTeamMember, inviteTeamMember } from '../lib/api';
 
 export default function SettingsClient() {
+    const [profile, setProfile] = useState<any>(null);
+    const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+    const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+    const [teamMembers, setTeamMembers] = useState<any[]>([]);
+    const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+    const [memberToDelete, setMemberToDelete] = useState<any>(null);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
     const [emailAlerts, setEmailAlerts] = useState(true);
     const [slackAlerts, setSlackAlerts] = useState(true);
     const [whatsappAlerts, setWhatsappAlerts] = useState(false);
     const [twoFactor, setTwoFactor] = useState(true);
     const [loginAlerts, setLoginAlerts] = useState(false);
+
+    const showToast = (msg: string) => {
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(null), 4000);
+    };
+
+    useEffect(() => {
+        fetchProfile().then((data: any) => {
+            if (data) {
+                setProfile(data);
+                const prefs = data.notification_preferences || {};
+                setEmailAlerts(prefs.email ?? true);
+                setSlackAlerts(prefs.slack ?? true);
+                setWhatsappAlerts(prefs.whatsapp ?? false);
+                setTwoFactor(prefs.twoFactor ?? true);
+                setLoginAlerts(prefs.loginAlerts ?? false);
+                setTheme(prefs.theme || 'light');
+            }
+        }).catch(console.error);
+
+        fetchTeam().then((data: any) => {
+            if (data) setTeamMembers(Array.isArray(data) ? data : []);
+        }).catch(console.error);
+    }, []);
+
+    const confirmDelete = async (id: string) => {
+        try {
+            await deleteTeamMember(id);
+            setTeamMembers(prev => prev.filter(m => m.id !== id));
+            showToast('Team member successfully removed.');
+            setMemberToDelete(null);
+        } catch (e) {
+            console.error(e);
+            alert('Failed to remove team member.');
+        }
+    };
+
+    const updatePref = (key: string, value: any) => {
+        // Optimistic UI updates
+        if (key === 'email') setEmailAlerts(value);
+        if (key === 'slack') setSlackAlerts(value);
+        if (key === 'whatsapp') setWhatsappAlerts(value);
+        if (key === 'twoFactor') setTwoFactor(value);
+        if (key === 'loginAlerts') setLoginAlerts(value);
+        if (key === 'theme') setTheme(value);
+
+        const newPrefs = {
+            email: key === 'email' ? value : emailAlerts,
+            slack: key === 'slack' ? value : slackAlerts,
+            whatsapp: key === 'whatsapp' ? value : whatsappAlerts,
+            twoFactor: key === 'twoFactor' ? value : twoFactor,
+            loginAlerts: key === 'loginAlerts' ? value : loginAlerts,
+            theme: key === 'theme' ? value : theme
+        };
+        updateProfile({ notification_preferences: newPrefs }).catch(console.error);
+    };
 
     return (
         <div className="min-h-screen bg-[#F8FAFC]">
@@ -32,7 +96,7 @@ export default function SettingsClient() {
 
                 {/* Grid Layout Container */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 pb-12">
-                    
+
                     {/* 1. Profile - spans 8 cols on desktop */}
                     <div className="bg-white rounded-[20px] md:rounded-3xl p-5 md:p-8 shadow-sm border border-slate-100 flex flex-col justify-between md:col-span-8 md:row-start-1 order-1">
                         <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-6 mb-8 md:mb-10">
@@ -46,25 +110,25 @@ export default function SettingsClient() {
                                     </button>
                                 </div>
                                 <div>
-                                    <h2 className="text-[20px] md:text-[24px] font-bold text-[#1E293B] leading-tight mb-1">Ahmed Hassan</h2>
-                                    <p className="text-[13px] md:text-[14px] text-slate-500 mb-2 md:mb-3">ahmed.hassan@ibasolutions.com</p>
+                                    <h2 className="text-[20px] md:text-[24px] font-bold text-[#1E293B] leading-tight mb-1">{profile ? `${profile.first_name} ${profile.last_name || ''}` : 'Loading...'}</h2>
+                                    <p className="text-[13px] md:text-[14px] text-slate-500 mb-2 md:mb-3">{profile?.email || '...'}</p>
                                     <div className="flex items-center gap-2 justify-center md:justify-start flex-wrap">
                                         <span className="text-[10px] font-bold text-[#00C2FF] bg-[#E6F8F9] px-2.5 py-1 rounded uppercase tracking-wider">ADMINISTRATOR</span>
                                         <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded text-center">IBA SOLUTIONS FZ-LLC</span>
                                     </div>
                                 </div>
                             </div>
-                            <button className="w-full md:w-auto bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#1E293B] font-semibold px-6 py-2.5 rounded-[12px] md:rounded-xl text-[13px] md:text-[14px] transition-colors mt-2 md:mt-0">
+                            <button onClick={() => setIsEditProfileOpen(true)} className="w-full md:w-auto bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#1E293B] font-semibold px-6 py-2.5 rounded-[12px] md:rounded-xl text-[13px] md:text-[14px] transition-colors mt-2 md:mt-0">
                                 Edit Profile
                             </button>
                         </div>
-                        
+
                         {/* Timezone & Language */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-5 md:pt-6">
                             <div className="flex md:flex-col justify-between items-center md:items-start gap-1">
                                 <label className="text-[10px] md:text-[11px] font-bold tracking-wider text-slate-400 uppercase">TIMEZONE</label>
                                 <div className="flex items-center gap-2 text-[13px] md:text-[14px] font-medium text-[#1E293B]">
-                                    <span className="text-slate-400">🕒</span> Dubai (GMT+4)
+                                    <span className="text-slate-400">🕒</span> {profile?.timezone || 'UTC'}
                                 </div>
                             </div>
                             <div className="flex md:flex-col justify-between items-center md:items-start gap-1">
@@ -83,10 +147,10 @@ export default function SettingsClient() {
                             <h3 className="text-[15px] md:text-[16px] font-bold text-[#1E293B]">Appearance</h3>
                         </div>
                         <p className="text-[12px] md:text-[13px] text-slate-500 mb-6 leading-relaxed">Customize the look and feel of your AI dashboard workspace.</p>
-                        
+
                         <div className="grid grid-cols-2 gap-4 mt-auto">
-                            <button 
-                                onClick={() => setTheme('light')}
+                            <button
+                                onClick={() => updatePref('theme', 'light')}
                                 className={`flex flex-col items-center gap-3 p-3 rounded-xl border-2 transition-all ${theme === 'light' ? 'border-[#00C2FF] bg-[#F8FAFC]' : 'border-slate-100 bg-white hover:border-slate-200'}`}
                             >
                                 <div className="w-full flex items-center justify-between px-1">
@@ -99,8 +163,8 @@ export default function SettingsClient() {
                                 <span className={`text-[12px] font-semibold ${theme === 'light' ? 'text-[#1E293B]' : 'text-slate-500'}`}>Light Mode</span>
                             </button>
 
-                            <button 
-                                onClick={() => setTheme('dark')}
+                            <button
+                                onClick={() => updatePref('theme', 'dark')}
                                 className={`flex flex-col items-center gap-3 p-3 rounded-xl border-2 transition-all ${theme === 'dark' ? 'border-[#00C2FF] bg-[#1E293B]' : 'border-slate-100 bg-white hover:border-slate-200'}`}
                             >
                                 <div className="w-full flex items-center justify-between px-1">
@@ -122,23 +186,23 @@ export default function SettingsClient() {
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00C2FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path></svg>
                                 <h3 className="text-[15px] md:text-[16px] font-bold text-[#1E293B]">Security</h3>
                             </div>
-                            
-                            <ToggleSetting 
-                                label="Two-factor Auth" 
-                                description="Secure your login" 
-                                active={twoFactor} 
-                                onToggle={() => setTwoFactor(!twoFactor)} 
+
+                            <ToggleSetting
+                                label="Two-factor Auth"
+                                description="Secure your login"
+                                active={twoFactor}
+                                onToggle={() => updatePref('twoFactor', !twoFactor)}
                             />
-                            
-                            <ToggleSetting 
-                                label="Login Alerts" 
-                                description="Notify on new device" 
-                                active={loginAlerts} 
-                                onToggle={() => setLoginAlerts(!loginAlerts)} 
+
+                            <ToggleSetting
+                                label="Login Alerts"
+                                description="Notify on new device"
+                                active={loginAlerts}
+                                onToggle={() => updatePref('loginAlerts', !loginAlerts)}
                             />
                         </div>
 
-                        <button className="w-full mt-6 bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#1E293B] font-semibold py-2.5 rounded-xl text-[13px] md:text-[14px] transition-colors">
+                        <button onClick={() => setIsChangePasswordOpen(true)} className="w-full mt-6 bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#1E293B] font-semibold py-2.5 rounded-xl text-[13px] md:text-[14px] transition-colors">
                             Change Password
                         </button>
                     </div>
@@ -150,29 +214,29 @@ export default function SettingsClient() {
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00C2FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                                 <h3 className="text-[15px] md:text-[16px] font-bold text-[#1E293B]">Notifications</h3>
                             </div>
-                            
+
                             <div className="space-y-4">
-                                <CheckboxSetting 
-                                    label="Email Alerts" 
-                                    description="Weekly reports and security notices." 
-                                    active={emailAlerts} 
-                                    onToggle={() => setEmailAlerts(!emailAlerts)} 
+                                <CheckboxSetting
+                                    label="Email Alerts"
+                                    description="Weekly reports and security notices."
+                                    active={emailAlerts}
+                                    onToggle={() => updatePref('email', !emailAlerts)}
                                     mobileToggle
                                 />
-                                
-                                <CheckboxSetting 
-                                    label="Slack" 
-                                    description="Direct channel updates for workflow triggers." 
-                                    active={slackAlerts} 
-                                    onToggle={() => setSlackAlerts(!slackAlerts)} 
+
+                                <CheckboxSetting
+                                    label="Slack"
+                                    description="Direct channel updates for workflow triggers."
+                                    active={slackAlerts}
+                                    onToggle={() => updatePref('slack', !slackAlerts)}
                                     mobileToggle
                                 />
-                                
-                                <CheckboxSetting 
-                                    label="WhatsApp" 
-                                    description="Critical alerts via messaging app." 
-                                    active={whatsappAlerts} 
-                                    onToggle={() => setWhatsappAlerts(!whatsappAlerts)} 
+
+                                <CheckboxSetting
+                                    label="WhatsApp"
+                                    description="Critical alerts via messaging app."
+                                    active={whatsappAlerts}
+                                    onToggle={() => updatePref('whatsapp', !whatsappAlerts)}
                                     mobileToggle
                                 />
                             </div>
@@ -186,12 +250,12 @@ export default function SettingsClient() {
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00C2FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                                 <h3 className="text-[15px] md:text-[16px] font-bold text-[#1E293B]">Team Members</h3>
                             </div>
-                            <button className="text-[12px] md:text-[13px] font-semibold text-[#00C2FF] hover:text-[#00A3D9] transition-colors">
+                            <button onClick={() => setIsAddMemberOpen(true)} className="text-[12px] md:text-[13px] font-semibold text-[#00C2FF] hover:text-[#00A3D9] transition-colors">
                                 <span className="hidden md:inline">Add New Member</span>
-                                <span className="md:hidden">Manage</span>
+                                <span className="md:hidden">Add</span>
                             </button>
                         </div>
-                        
+
                         <div className="flex-1 overflow-x-auto no-scrollbar">
                             <table className="w-full min-w-[320px] text-left">
                                 <thead className="hidden md:table-header-group">
@@ -203,30 +267,24 @@ export default function SettingsClient() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <TeamRow 
-                                        name="Sarah Chen" 
-                                        email="sarah@ibasolutions.com" 
-                                        role="ADMIN" 
-                                        time="2 mins ago" 
-                                        avatarColor="bg-[#E5A58A]" 
-                                        online={true} 
-                                    />
-                                    <TeamRow 
-                                        name="Marco Rossi" 
-                                        email="m.rossi@ibasolutions.com" 
-                                        role="EDITOR" 
-                                        time="1 hour ago" 
-                                        avatarColor="bg-slate-200" 
-                                        online={true} 
-                                    />
-                                    <TeamRow 
-                                        name="Elena Vance" 
-                                        email="elena.v@ibasolutions.com" 
-                                        role="VIEWER" 
-                                        time="Yesterday" 
-                                        avatarColor="bg-[#64A69E]" 
-                                        online={false} 
-                                    />
+                                    {teamMembers.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4} className="text-center py-4 text-sm text-slate-500">No team members found.</td>
+                                        </tr>
+                                    ) : (
+                                        teamMembers.map((tm: any) => (
+                                            <TeamRow
+                                                key={tm.id}
+                                                name={tm.member?.first_name ? `${tm.member.first_name} ${tm.member.last_name || ''}`.trim() : 'Invited User'}
+                                                email={tm.member?.email || 'Unknown'}
+                                                role={tm.role.toUpperCase()}
+                                                time="Recently"
+                                                avatarColor="bg-[#64A69E]"
+                                                online={false}
+                                                onDelete={() => setMemberToDelete(tm)}
+                                            />
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -236,7 +294,7 @@ export default function SettingsClient() {
                     <div className="bg-white md:bg-[#0B1521] rounded-[20px] md:rounded-3xl p-6 shadow-sm border border-slate-100 md:border-none md:col-span-8 md:row-start-3 order-6 md:order-5 relative overflow-hidden flex flex-col justify-between group">
                         {/* Decorative Background for Desktop */}
                         <div className="hidden md:block absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-[#00C2FF]/10 to-transparent pointer-events-none"></div>
-                        
+
                         <div>
                             <div className="flex items-center gap-2 mb-2 relative z-10">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00C2FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
@@ -255,14 +313,114 @@ export default function SettingsClient() {
                                 Documentation
                             </button>
                         </div>
-                        
+
                         {/* Desktop Icons Top Right */}
                         <div className="hidden md:flex absolute top-6 right-6 gap-2">
                             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#00C2FF] border border-white/10"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></div>
                             <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#00C2FF] border border-white/10"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div>
                         </div>
                     </div>
-                    
+
+                </div>
+            </div>
+
+            {isEditProfileOpen && (
+                <EditProfileModal
+                    profile={profile}
+                    onClose={() => setIsEditProfileOpen(false)}
+                    onSave={(updatedFields) => {
+                        setProfile((prev: any) => ({ ...prev, ...updatedFields }));
+                        setIsEditProfileOpen(false);
+                    }}
+                />
+            )}
+
+            {isChangePasswordOpen && (
+                <ChangePasswordModal
+                    onClose={() => setIsChangePasswordOpen(false)}
+                />
+            )}
+
+            {isAddMemberOpen && (
+                <AddMemberModal
+                    onClose={() => setIsAddMemberOpen(false)}
+                    onAdded={(newMember) => {
+                        setTeamMembers(prev => [...prev, newMember]);
+                        setIsAddMemberOpen(false);
+                        showToast(`Successfully invited! Secure password sent to email.`);
+                    }}
+                />
+            )}
+
+            {memberToDelete && (
+                <ConfirmDeleteModal 
+                    member={memberToDelete}
+                    onClose={() => setMemberToDelete(null)}
+                    onConfirm={() => confirmDelete(memberToDelete.id)}
+                />
+            )}
+
+            {toastMessage && (
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#10A37F] text-white px-6 py-3.5 rounded-2xl shadow-2xl z-[100] font-semibold text-[14px] flex items-center gap-3 animate-bounce">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    {toastMessage}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function EditProfileModal({ profile, onClose, onSave }: { profile: any, onClose: () => void, onSave: (fields: any) => void }) {
+    const [firstName, setFirstName] = useState(profile?.first_name || '');
+    const [lastName, setLastName] = useState(profile?.last_name || '');
+    const [company, setCompany] = useState(profile?.company_name || '');
+    const [loading, setLoading] = useState(false);
+
+    const handleSave = async () => {
+        setLoading(true);
+        try {
+            const updates = { first_name: firstName, last_name: lastName, company_name: company };
+            await updateProfile(updates);
+            onSave(updates);
+        } catch (e) {
+            console.error(e);
+            alert("Failed to update profile");
+        }
+        setLoading(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-[#475569]/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 font-sans">
+            <div className="bg-white rounded-[20px] w-full max-w-[480px] p-6 md:p-8 shadow-2xl relative">
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-[18px] font-bold text-[#1E293B]">Edit Profile</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-[13px] font-semibold text-[#1E293B] mb-2">First Name</label>
+                            <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full bg-[#F8FAFC] border border-slate-200 rounded-[10px] px-4 py-3 text-[14px] text-[#1E293B] focus:border-[#00C2FF] focus:ring-1 focus:ring-[#00C2FF] focus:outline-none" />
+                        </div>
+                        <div>
+                            <label className="block text-[13px] font-semibold text-[#1E293B] mb-2">Last Name</label>
+                            <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="w-full bg-[#F8FAFC] border border-slate-200 rounded-[10px] px-4 py-3 text-[14px] text-[#1E293B] focus:border-[#00C2FF] focus:ring-1 focus:ring-[#00C2FF] focus:outline-none" />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-[13px] font-semibold text-[#1E293B] mb-2">Company Name</label>
+                        <input type="text" value={company} onChange={e => setCompany(e.target.value)} className="w-full bg-[#F8FAFC] border border-slate-200 rounded-[10px] px-4 py-3 text-[14px] text-[#1E293B] focus:border-[#00C2FF] focus:ring-1 focus:ring-[#00C2FF] focus:outline-none" />
+                    </div>
+                </div>
+                <div className="flex items-center justify-end gap-3 mt-8">
+                    <button onClick={onClose} className="px-5 py-2.5 rounded-[10px] text-[14px] font-semibold text-[#1E293B] bg-[#F1F5F9] hover:bg-[#E2E8F0] transition-colors">
+                        Cancel
+                    </button>
+                    <button onClick={handleSave} disabled={loading} className="px-6 py-2.5 rounded-[10px] text-[14px] font-semibold text-white bg-[#00C2FF] hover:bg-[#00A3D9] transition-colors">
+                        {loading ? 'Saving...' : 'Save Changes'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -276,7 +434,7 @@ function ToggleSetting({ label, description, active, onToggle }: { label: string
                 <div className="text-[13px] font-bold text-[#1E293B]">{label}</div>
                 <div className="text-[11px] text-slate-500">{description}</div>
             </div>
-            <button 
+            <button
                 onClick={onToggle}
                 className={`relative inline-flex h-[20px] w-[36px] items-center rounded-full transition-colors ${active ? 'bg-[#00C2FF]' : 'bg-slate-200'}`}
             >
@@ -293,9 +451,9 @@ function CheckboxSetting({ label, description, active, onToggle, mobileToggle = 
                 <div className="text-[13px] font-bold text-[#1E293B]">{label}</div>
                 <div className="text-[11px] text-slate-500 leading-tight mt-0.5 max-w-[200px] hidden md:block">{description}</div>
             </div>
-            
+
             {/* Desktop Checkbox */}
-            <button 
+            <button
                 onClick={onToggle}
                 className={`hidden md:flex w-[18px] h-[18px] rounded border items-center justify-center transition-colors shrink-0 ${active ? 'bg-[#00C2FF] border-[#00C2FF] text-white' : 'bg-slate-50 border-slate-300'}`}
             >
@@ -304,7 +462,7 @@ function CheckboxSetting({ label, description, active, onToggle, mobileToggle = 
 
             {/* Mobile Toggle Alternative */}
             {mobileToggle && (
-                <button 
+                <button
                     onClick={onToggle}
                     className={`md:hidden relative inline-flex h-[20px] w-[36px] items-center rounded-full transition-colors shrink-0 ${active ? 'bg-[#00C2FF]' : 'bg-slate-200'}`}
                 >
@@ -315,7 +473,7 @@ function CheckboxSetting({ label, description, active, onToggle, mobileToggle = 
     );
 }
 
-function TeamRow({ name, email, role, time, avatarColor, online }: { name: string, email: string, role: string, time: string, avatarColor: string, online: boolean }) {
+function TeamRow({ name, email, role, time, avatarColor, online, onDelete }: { name: string, email: string, role: string, time: string, avatarColor: string, online: boolean, onDelete?: () => void }) {
     return (
         <tr className="border-b border-slate-50 last:border-0 group flex flex-col md:table-row py-3 md:py-0">
             <td className="py-0 md:py-3 pl-2 w-full md:w-auto">
@@ -342,12 +500,140 @@ function TeamRow({ name, email, role, time, avatarColor, online }: { name: strin
             {/* Mobile Actions / Online status */}
             <td className="py-1 md:py-3 text-right pr-2 absolute md:relative right-4 md:right-auto mt-2 md:mt-0 items-center h-full">
                 <div className="flex items-center justify-end gap-3 h-full">
-                   <div className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-green-400' : 'bg-slate-300'} md:hidden`}></div>
-                   <button className="text-slate-400 hover:text-slate-600 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity p-1">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                   </button>
+                    <div className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-green-400' : 'bg-slate-300'} md:hidden`}></div>
+                    <button onClick={onDelete} className="text-red-400 hover:text-red-600 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity p-1">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
                 </div>
             </td>
         </tr>
+    );
+}
+
+function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleSave = async () => {
+        if (!password || password.length < 6) return alert('Password must be at least 6 characters');
+        setLoading(true);
+        try {
+            await updateProfile({ password });
+            alert('Password updated successfully!');
+            onClose();
+        } catch (e) {
+            console.error(e);
+            alert("Failed to update password");
+        }
+        setLoading(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-[#475569]/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 font-sans">
+            <div className="bg-white rounded-[20px] w-full max-w-[400px] p-6 md:p-8 shadow-2xl relative">
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-[18px] font-bold text-[#1E293B]">Change Password</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-[13px] font-semibold text-[#1E293B] mb-2">New Password</label>
+                        <input type="password" placeholder="At least 6 characters" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-[#F8FAFC] border border-slate-200 rounded-[10px] px-4 py-3 text-[14px] text-[#1E293B] focus:border-[#00C2FF] focus:ring-1 focus:ring-[#00C2FF] focus:outline-none" />
+                    </div>
+                </div>
+                <div className="flex items-center justify-end gap-3 mt-8">
+                    <button onClick={onClose} className="px-5 py-2.5 rounded-[10px] text-[14px] font-semibold text-[#1E293B] bg-[#F1F5F9] hover:bg-[#E2E8F0] transition-colors">
+                        Cancel
+                    </button>
+                    <button onClick={handleSave} disabled={loading} className="px-6 py-2.5 rounded-[10px] text-[14px] font-semibold text-white bg-[#00C2FF] hover:bg-[#00A3D9] transition-colors">
+                        {loading ? 'Saving...' : 'Update Password'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function AddMemberModal({ onClose, onAdded }: { onClose: () => void, onAdded: (m: any) => void }) {
+    const [email, setEmail] = useState('');
+    const [role, setRole] = useState('viewer');
+    const [loading, setLoading] = useState(false);
+
+    const handleSave = async () => {
+        if (!email.includes('@')) return alert('Valid email required');
+        setLoading(true);
+        try {
+            const res: any = await inviteTeamMember(email, role);
+            if (res) {
+                onAdded(res);
+            }
+        } catch (e: any) {
+            console.error(e);
+            alert(e.message || "Failed to add team member");
+        }
+        setLoading(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-[#475569]/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 font-sans">
+            <div className="bg-white rounded-[20px] w-full max-w-[400px] p-6 md:p-8 shadow-2xl relative">
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-[18px] font-bold text-[#1E293B]">Invite Team Member</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-[13px] font-semibold text-[#1E293B] mb-2">Email Address</label>
+                        <input type="email" placeholder="colleague@company.com" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-[#F8FAFC] border border-slate-200 rounded-[10px] px-4 py-3 text-[14px] text-[#1E293B] focus:border-[#00C2FF] focus:ring-1 focus:ring-[#00C2FF] focus:outline-none" />
+                    </div>
+                    <div>
+                        <label className="block text-[13px] font-semibold text-[#1E293B] mb-2">Role</label>
+                        <select value={role} onChange={e => setRole(e.target.value)} className="w-full bg-[#F8FAFC] border border-slate-200 rounded-[10px] px-4 py-3 text-[14px] text-[#1E293B] focus:border-[#00C2FF] focus:ring-1 focus:ring-[#00C2FF] focus:outline-none">
+                            <option value="viewer">Viewer</option>
+                            <option value="editor">Editor</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <div className="flex items-center justify-end gap-3 mt-8">
+                    <button onClick={onClose} className="px-5 py-2.5 rounded-[10px] text-[14px] font-semibold text-[#1E293B] bg-[#F1F5F9] hover:bg-[#E2E8F0] transition-colors">
+                        Cancel
+                    </button>
+                    <button onClick={handleSave} disabled={loading} className="px-6 py-2.5 rounded-[10px] text-[14px] font-semibold text-white bg-[#00C2FF] hover:bg-[#00A3D9] transition-colors">
+                        {loading ? 'Sending...' : 'Send Invite'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ConfirmDeleteModal({ member, onClose, onConfirm }: { member: any, onClose: () => void, onConfirm: () => void }) {
+    const memberName = member.member?.first_name ? `${member.member.first_name} ${member.member.last_name || ''}`.trim() : member.member?.email;
+
+    return (
+        <div className="fixed inset-0 bg-[#475569]/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 font-sans">
+            <div className="bg-white rounded-[20px] w-full max-w-[400px] p-6 md:p-8 shadow-2xl relative text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5 text-red-500">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                </div>
+                <h3 className="text-[20px] font-bold text-[#1E293B] mb-2">Remove Team Member</h3>
+                <p className="text-[14px] text-slate-500 mb-8 leading-relaxed">
+                    Are you sure you want to remove <strong>{memberName || 'this user'}</strong> from your team? They will immediately lose access to this dashboard.
+                </p>
+                <div className="flex items-center justify-center gap-3">
+                    <button onClick={onClose} className="flex-1 px-5 py-3 rounded-xl text-[14px] font-semibold text-[#1E293B] bg-[#F1F5F9] hover:bg-[#E2E8F0] transition-colors">
+                        Cancel
+                    </button>
+                    <button onClick={onConfirm} className="flex-1 px-5 py-3 rounded-xl text-[14px] font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors">
+                        Yes, Remove
+                    </button>
+                </div>
+            </div>
+        </div>
     );
 }

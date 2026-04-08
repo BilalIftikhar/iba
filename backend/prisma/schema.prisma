@@ -103,6 +103,7 @@ enum NotificationType {
   automation_started
   automation_error
   order_confirmed
+  system
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -261,8 +262,10 @@ model Message {
   /// ID of the sender — references User.id (for clients) or an admin user ID
   sender_id   String
   sender_type SenderType
-  body        String
-  sent_at     DateTime   @default(now())
+  body            String
+  attachment_url  String?
+  attachment_name String?
+  sent_at         DateTime   @default(now())
   /// NULL means unread; set when the recipient reads the message
   read_at     DateTime?
 

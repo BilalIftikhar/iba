@@ -1,7 +1,51 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { fetchNotifications, markNotificationsAsRead } from '../lib/api';
+
+function timeAgo(dateString: string) {
+  if (!dateString) return '';
+  const seconds = Math.floor((new Date().getTime() - new Date(dateString).getTime()) / 1000);
+  let interval = seconds / 31536000;
+  if (interval > 1) return Math.floor(interval) + "y ago";
+  interval = seconds / 2592000;
+  if (interval > 1) return Math.floor(interval) + "mo ago";
+  interval = seconds / 86400;
+  if (interval > 1) return Math.floor(interval) + "d ago";
+  interval = seconds / 3600;
+  if (interval > 1) return Math.floor(interval) + "h ago";
+  interval = seconds / 60;
+  if (interval > 1) return Math.floor(interval) + "m ago";
+  return "Just now";
+}
+
+function getNotificationIcon(type: string) {
+  switch (type) {
+    case 'message': return { icon: <MailIcon />, bg: '#DBEAFE' };
+    case 'booking': return { icon: <CalendarIcon />, bg: '#E0FCF9' };
+    case 'workflow': return { icon: <CheckCircleIcon />, bg: '#D1FAE5' };
+    default: return { icon: <BellIcon />, bg: '#F1F5F9' };
+  }
+}
+
+function MailIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+      <polyline points="22,6 12,13 2,6" />
+    </svg>
+  );
+}
+
+function BellIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
 
 // ─── Icons ─────────────────────────────────────────────────────────────────
 function BellCyanIcon() {
@@ -70,51 +114,21 @@ function ArrowRightIcon() {
   );
 }
 
-// ─── Modal Items Mock Data ─────────────────────────────────────────────────
-const MODAL_NOTIFICATIONS = [
-  {
-    id: 1,
-    icon: <CheckCircleIcon color="#10B981" />,
-    iconBg: '#D1FAE5',
-    text: "Your lead enrichment pipeline has successfully completed its run.",
-    time: "2 mins ago",
-    unread: true,
-  },
-  {
-    id: 2,
-    icon: <CalendarIcon color="#0EA5E9" />,
-    iconBg: '#E0F2FE',
-    text: "A new booking has been received for the 'Marketing Automation' flow.",
-    time: "45 mins ago",
-    unread: true,
-  },
-  {
-    id: 3,
-    icon: <WarningIcon color="#D97706" />,
-    iconBg: '#FEF3C7',
-    text: "System maintenance scheduled for Feb 15th at 02:00 AM UTC.",
-    time: "2 hours ago",
-    unread: true,
-  },
-  {
-    id: 4,
-    icon: <GraphIcon color="#64748B" />,
-    iconBg: '#F1F5F9',
-    text: "Global traffic spike detected in EU-West region. Scaling active nodes...",
-    time: "3 hours ago",
-    unread: false,
-  }
-];
-
-export const UNREAD_COUNT = MODAL_NOTIFICATIONS.filter(n => n.unread).length;
+// ─── Modal Implementation ─────────────────────────────────────────────────
 
 export function NotificationModal({ isOpen, onClose, onRead }: { isOpen: boolean; onClose: () => void; onRead?: () => void }) {
-  const [readIds, setReadIds] = React.useState<number[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
-      // Mark all as read when modal opens
-      setReadIds(MODAL_NOTIFICATIONS.map(n => n.id));
+      setLoading(true);
+      fetchNotifications()
+        .then(data => setNotifications((data || []).slice(0, 8)))
+        .finally(() => setLoading(false));
+      
+      // Mark all as read on the backend
+      markNotificationsAsRead().catch(() => {});
       onRead?.();
     }
   }, [isOpen, onRead]);
@@ -142,23 +156,29 @@ export function NotificationModal({ isOpen, onClose, onRead }: { isOpen: boolean
         </div>
 
         {/* Modal List */}
-        <div className="px-4 sm:px-5 pb-4 flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
-          {MODAL_NOTIFICATIONS.map((notif) => (
-            <div key={notif.id} className={`rounded-[16px] p-3 sm:p-4 pr-5 sm:pr-6 flex items-start gap-3 sm:gap-4 hover:bg-slate-50 transition-colors cursor-pointer border ${notif.unread && !readIds.includes(notif.id) ? 'bg-[#F0FAFF] border-cyan-100' : 'bg-[#F8FAFC] border-transparent hover:border-slate-100'}`}>
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: notif.iconBg }}>
-                {notif.icon}
-              </div>
-              <div className="flex flex-col gap-1 sm:gap-1.5 flex-1">
-                <p className="text-[13px] sm:text-[14px] leading-snug font-medium text-[#334155]">{notif.text}</p>
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] sm:text-[12px] font-semibold text-slate-400">{notif.time}</p>
-                  {notif.unread && !readIds.includes(notif.id) && (
-                    <span className="text-[10px] font-bold text-white bg-red-500 rounded-full px-1.5 py-0.5">NEW</span>
-                  )}
+        <div className="px-4 sm:px-5 pb-4 flex flex-col gap-3 max-h-[60vh] overflow-y-auto min-h-[100px]">
+          {loading && notifications.length === 0 ? (
+             <div className="text-center py-10 text-slate-400 font-medium">Loading alerts...</div>
+          ) : notifications.length === 0 ? (
+            <div className="text-center py-10 text-slate-400 font-medium">No new notifications</div>
+          ) : (
+            notifications.map((notif) => {
+              const { icon, bg } = getNotificationIcon(notif.type);
+              return (
+                <div key={notif.id} className={`rounded-[16px] p-3 sm:p-4 pr-5 sm:pr-6 flex items-start gap-3 sm:gap-4 bg-[#F8FAFC] border border-transparent hover:border-slate-100 transition-colors cursor-pointer`}>
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: bg }}>
+                    {icon}
+                  </div>
+                  <div className="flex flex-col gap-1 sm:gap-1.5 flex-1">
+                    <p className="text-[13px] sm:text-[14px] leading-snug font-medium text-[#334155]">{notif.title}: {notif.body}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] sm:text-[12px] font-semibold text-slate-400">{timeAgo(notif.created_at)}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          ))}
+              );
+            })
+          )}
         </div>
 
         {/* Modal Bottom Button */}

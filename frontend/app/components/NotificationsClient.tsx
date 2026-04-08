@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { fetchNotifications, markNotificationsAsRead } from '../lib/api';
+import { getSocket } from '../lib/socket';
 
 // ─── Icons ─────────────────────────────────────────────────────────────────
 function BellIcon() {
@@ -143,130 +145,77 @@ function ArrowRightIcon() {
   );
 }
 
-// ─── Modal Items Mock Data ─────────────────────────────────────────────────
-const MODAL_NOTIFICATIONS = [
-  {
-    id: 1,
-    icon: <CheckCircleIcon color="#10B981" />,
-    iconBg: '#D1FAE5',
-    text: "Your lead enrichment pipeline has successfully completed its run.",
-    time: "2 mins ago"
-  },
-  {
-    id: 2,
-    icon: <CalendarIcon color="#0EA5E9" />,
-    iconBg: '#E0F2FE',
-    text: "A new booking has been received for the 'Marketing Automation' flow.",
-    time: "45 mins ago"
-  },
-  {
-    id: 3,
-    icon: <WarningIcon color="#D97706" />, // Darker yellow for accessibility on light bg
-    iconBg: '#FEF3C7',
-    text: "System maintenance scheduled for Feb 15th at 02:00 AM UTC.",
-    time: "2 hours ago"
-  },
-  {
-    id: 4,
-    icon: <GraphIcon color="#64748B" />,
-    iconBg: '#F1F5F9',
-    text: "Global traffic spike detected in EU-West region. Scaling active nodes...",
-    time: "3 hours ago"
-  }
-];
+function timeAgo(dateString: string) {
+  if (!dateString) return '';
+  const seconds = Math.floor((new Date().getTime() - new Date(dateString).getTime()) / 1000);
+  let interval = seconds / 31536000;
+  if (interval > 1) return Math.floor(interval) + "y ago";
+  interval = seconds / 2592000;
+  if (interval > 1) return Math.floor(interval) + "mo ago";
+  interval = seconds / 86400;
+  if (interval > 1) return Math.floor(interval) + "d ago";
+  interval = seconds / 3600;
+  if (interval > 1) return Math.floor(interval) + "h ago";
+  interval = seconds / 60;
+  if (interval > 1) return Math.floor(interval) + "m ago";
+  return "Just now";
+}
 
-// ─── Page Details Component Data ───────────────────────────────────────────
-const NOTIFICATION_DETAILS_LEFT = [
-  {
-    id: 1,
-    title: "Pipeline Success",
-    time: "2m ago",
-    text: "Your lead enrichment pipeline has successfully completed its run.",
-    icon: <CheckCircleIcon color="#10B981" />,
-    iconBg: '#D1FAE5',
-    badgeText: "ID: #ENR-992B",
-    badgeStyles: { bg: '#F1F5F9', color: '#64748B' }
-  },
-  {
-    id: 2,
-    title: "Maintenance",
-    time: "2h ago",
-    text: "System maintenance scheduled for Feb 15th at 02:00 AM UTC.",
-    icon: <WarningIcon color="#D97706" />,
-    iconBg: '#FEF3C7',
-    actionText: "VIEW SCHEDULE",
-    actionColor: "#64748B"
-  },
-  {
-    id: 3,
-    title: "New Report Ready",
-    time: "5h ago",
-    text: "Your weekly performance analytics report is now available.",
-    icon: <MailIcon color="#3B82F6" />,
-    iconBg: '#DBEAFE',
-    badgeText: "WEEKLY SUMMARY",
-    badgeStyles: { bg: '#EFF6FF', color: '#3B82F6' }
-  },
-  {
-    id: 4,
-    title: "Member Joined",
-    time: "Yesterday",
-    text: "David Chen has joined your organization workspace.",
-    icon: <UserPlusIcon color="#64748B" />,
-    iconBg: '#F1F5F9',
-    badgeText: "SALES TEAM",
-    badgeStyles: { bg: '#F8FAFC', color: '#64748B', border: '1px solid #E2E8F0' }
+function getNotificationIcon(type: string) {
+  switch (type) {
+    case 'message': return { icon: <MailIcon color="#3B82F6" />, bg: '#DBEAFE' };
+    case 'booking': return { icon: <CalendarIcon color="#00C2FF" />, bg: '#E0FCF9' };
+    case 'workflow': return { icon: <CheckCircleIcon color="#10B981" />, bg: '#D1FAE5' };
+    default: return { icon: <BellIcon />, bg: '#F1F5F9' };
   }
-];
-
-const NOTIFICATION_DETAILS_RIGHT = [
-  {
-    id: 5,
-    title: "New Booking",
-    time: "45m ago",
-    text: "A new booking has been received for 'Marketing Automation'.",
-    icon: <CalendarIcon color="#00C2FF" />,
-    iconBg: '#E0FCF9',
-    badgeText: "SARAH JENKINS",
-    badgeStyles: { bg: '#E0FCF9', color: '#00C2FF' }
-  },
-  {
-    id: 6,
-    title: "Traffic Spike",
-    time: "3h ago",
-    text: "EU-West region scaling active nodes due to high traffic.",
-    icon: <AlertCircleIcon color="#EF4444" />,
-    iconBg: '#FEE2E2',
-    isProgress: true,
-    progressLabel: "LOAD: 85%",
-    progressRegion: "EU-WEST",
-    progressValue: "85%"
-  },
-  {
-    id: 7,
-    title: "Update Available",
-    time: "8h ago",
-    text: "A new version of the CRM connector is available for install.",
-    icon: <ClockIcon color="#8B5CF6" />,
-    iconBg: '#F3E8FF',
-    actionText: "WHAT'S NEW?",
-    actionColor: "#8B5CF6"
-  },
-  {
-    id: 8,
-    title: "Campaign Goal",
-    time: "Yesterday",
-    text: "Outbound Flow 'Q1 Promo' reached 85% of its lead target.",
-    icon: <StarIcon color="#F97316" />,
-    iconBg: '#FFEDD5',
-    badgeText: "MILESTONE REACHED",
-    badgeStyles: { bg: '#FFF7ED', color: '#F97316', border: '1px solid #FFEDD5' }
-  }
-];
+}
 
 // ─── Component Code ────────────────────────────────────────────────────────
 export function NotificationsClient() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadNotifications = async () => {
+    try {
+      const data = await fetchNotifications();
+      setNotifications(data || []);
+    } catch (err) {
+      console.error('Failed to load notifications', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+    
+    // Setup socket listener
+    const socket = getSocket();
+    const handleNewNotification = (data: any) => {
+      console.log('[Notifications] New live notification:', data);
+      setNotifications(prev => [data.notification, ...prev]);
+    };
+
+    socket.on('client:new_notification', handleNewNotification);
+    
+    return () => {
+      socket.off('client:new_notification', handleNewNotification);
+    };
+  }, []);
+
+  const handleReadAll = async () => {
+    try {
+      await markNotificationsAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, read_at: new Date().toISOString() })));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const latestFive = notifications.slice(0, 5);
+  const leftCol = notifications.filter((_, i) => i % 2 === 0);
+  const rightCol = notifications.filter((_, i) => i % 2 !== 0);
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] font-sans pb-16">
@@ -318,22 +267,37 @@ export function NotificationsClient() {
             </div>
 
             {/* Modal List */}
-            <div className="px-5 pb-4 flex flex-col gap-3">
-              {MODAL_NOTIFICATIONS.map((notif) => (
-                <div key={notif.id} className="bg-[#F8FAFC] rounded-[16px] p-4 pr-6 flex items-start gap-4 hover:bg-slate-50 transition-colors cursor-pointer border border-transparent hover:border-slate-100">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: notif.iconBg }}>
-                    {notif.icon}
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <p className="text-[14px] leading-snug font-medium text-[#334155]">{notif.text}</p>
-                    <p className="text-[12px] font-semibold text-slate-400">{notif.time}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="px-5 pb-4 flex flex-col gap-3 min-h-[100px] max-h-[400px] overflow-y-auto">
+              {loading && notifications.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 font-medium">Loading alerts...</div>
+              ) : latestFive.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 font-medium">No new notifications</div>
+              ) : (
+                latestFive.map((notif) => {
+                  const { icon, bg } = getNotificationIcon(notif.type);
+                  return (
+                    <div key={notif.id} className={`bg-[#F8FAFC] rounded-[16px] p-4 pr-6 flex items-start gap-4 hover:bg-slate-50 transition-colors cursor-pointer border ${notif.read_at ? 'border-transparent' : 'border-cyan-100'}`}>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: bg }}>
+                        {icon}
+                      </div>
+                      <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                        <p className={`text-[14px] leading-snug ${notif.read_at ? 'text-[#64748B] font-medium' : 'text-[#334155] font-bold'}`}>{notif.title}: {notif.body}</p>
+                        <p className="text-[12px] font-semibold text-slate-400">{timeAgo(notif.created_at)}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             {/* Modal Bottom Button */}
-            <div className="px-5 pb-5 pt-2">
+            <div className="px-5 pb-5 pt-2 flex flex-col gap-2">
+              <button 
+                onClick={handleReadAll}
+                className="w-full text-slate-400 hover:text-slate-600 font-bold py-2 text-[13px] transition-all"
+              >
+                Mark all as read
+              </button>
               <button 
                 onClick={() => setIsModalOpen(false)}
                 className="w-full bg-[#00C2FF] hover:bg-[#00b0e8] text-white font-bold py-3.5 rounded-[12px] text-[15px] flex items-center justify-center gap-2 transition-all shadow-md shadow-cyan-200"
@@ -356,16 +320,46 @@ export function NotificationsClient() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 max-w-[1200px] mx-auto">
           {/* Left Column */}
           <div className="flex flex-col gap-5">
-            {NOTIFICATION_DETAILS_LEFT.map((item) => (
-              <NotificationCard key={item.id} item={item} />
-            ))}
+            {leftCol.map((item) => {
+              const { icon, bg } = getNotificationIcon(item.type);
+              return (
+                <NotificationCard 
+                  key={item.id} 
+                  item={{
+                    id: item.id,
+                    title: item.title,
+                    time: timeAgo(item.created_at),
+                    text: item.body,
+                    icon: icon,
+                    iconBg: bg,
+                    badgeText: item.read_at ? undefined : "NEW",
+                    badgeStyles: { bg: '#ECFEFF', color: '#0891B2' }
+                  }} 
+                />
+              );
+            })}
           </div>
           
           {/* Right Column */}
           <div className="flex flex-col gap-5">
-            {NOTIFICATION_DETAILS_RIGHT.map((item) => (
-              <NotificationCard key={item.id} item={item} />
-            ))}
+            {rightCol.map((item) => {
+              const { icon, bg } = getNotificationIcon(item.type);
+              return (
+                <NotificationCard 
+                  key={item.id} 
+                  item={{
+                    id: item.id,
+                    title: item.title,
+                    time: timeAgo(item.created_at),
+                    text: item.body,
+                    icon: icon,
+                    iconBg: bg,
+                    badgeText: item.read_at ? undefined : "NEW",
+                    badgeStyles: { bg: '#ECFEFF', color: '#0891B2' }
+                  }} 
+                />
+              );
+            })}
           </div>
         </div>
       </div>

@@ -194,6 +194,8 @@ function PipelineFleetManager({ rows, isMobile, onStopRequest, onShowSummary }: 
                                                     <MessengerPopup 
                                                         isOpen={openMessengerIndex === i} 
                                                         onClose={() => setOpenMessengerIndex(null)} 
+                                                        relatedEntityId={row.id}
+                                                        category="booking"
                                                     />
                                                 </div>
                                             )}

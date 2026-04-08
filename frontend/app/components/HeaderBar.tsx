@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { NotificationModal, UNREAD_COUNT } from './NotificationModal';
+import { fetchUnreadCount } from '../lib/api';
+import { NotificationModal } from './NotificationModal';
 
 interface HeaderBarProps {
   title: string;
@@ -8,7 +9,27 @@ interface HeaderBarProps {
 
 export function HeaderBar({ title }: HeaderBarProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [badgeCount, setBadgeCount] = useState(UNREAD_COUNT);
+  const [badgeCount, setBadgeCount] = useState(0);
+
+  const loadUnreadCount = async () => {
+    try {
+        const data = await fetchUnreadCount();
+        setBadgeCount(data.count);
+    } catch (e) { }
+  };
+
+  useEffect(() => {
+    loadUnreadCount();
+  }, []);
+
+  useEffect(() => {
+    const socket = (window as any).socket;
+    if (!socket) return;
+    
+    const handleNewNotif = () => setBadgeCount(prev => prev + 1);
+    socket.on('client:new_notification', handleNewNotif);
+    return () => socket.off('client:new_notification', handleNewNotif);
+  }, []);
 
   return (
     <>

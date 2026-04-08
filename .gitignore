@@ -41,3 +41,8 @@ backend/prisma/migrations/
 
 # Testing
 coverage/
+
+# Uploads
+backend/public/uploads/*
+!backend/public/uploads/.gitkeep
+media/

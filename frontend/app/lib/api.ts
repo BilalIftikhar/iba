@@ -32,7 +32,7 @@ export async function apiFetch<T>(path: string, options?: FetchOptions): Promise
             credentials: 'include',
             ...options,
             headers: {
-                'Content-Type': 'application/json',
+                ...(options?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
                 ...(tok ? { 'Authorization': `Bearer ${tok}` } : {}),
                 ...(options?.headers ?? {}),
             },
@@ -173,4 +173,57 @@ export async function deleteCredential<T = unknown>(id: string): Promise<T> {
     return apiFetch<T>(`/credentials/${id}`, {
         method: 'DELETE'
     });
+}
+
+// ── Messaging endpoints ────────────────────────────────────────
+
+export async function fetchMessageThreads<T = any>(): Promise<T[]> {
+    return apiFetch<T[]>('/messages/threads');
+}
+
+export async function fetchMessageThread<T = any>(id: string): Promise<T> {
+    return apiFetch<T>(`/messages/threads/${id}`);
+}
+
+export async function createMessageThread<T = any>(category: string, related_entity_id: string | null, message: string, attachment_url?: string, attachment_name?: string): Promise<T> {
+    return apiFetch<T>('/messages/threads', {
+        method: 'POST',
+        body: JSON.stringify({ category, related_entity_id, message, attachment_url, attachment_name })
+    });
+}
+
+export async function sendMessage<T = any>(threadId: string, body: string, attachment_url?: string, attachment_name?: string): Promise<T> {
+    return apiFetch<T>(`/messages/threads/${threadId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ body, attachment_url, attachment_name })
+    });
+}
+
+export async function fetchUnreadCount(): Promise<{ count: number }> {
+    const res = await apiFetch<{ count: number }>('/notifications/unread-count');
+    return res;
+}
+
+
+
+export async function uploadFile(file: File): Promise<{ url: string; name: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // We can use native fetch or refactor apiFetch to handle non-json responses
+    // But apiFetch expects JSON response, which upload returns.
+    return apiFetch<{ url: string; name: string }>('/upload', {
+        method: 'POST',
+        body: formData
+    });
+}
+
+// ── Notifications ──
+export async function fetchNotifications(): Promise<any[]> {
+    return apiFetch<any[]>('/notifications');
+}
+
+export async function markNotificationsAsRead(id?: string): Promise<any> {
+    const path = id ? `/notifications/${id}/read` : '/notifications/read-all';
+    return apiFetch<any>(path, { method: 'PATCH' });
 }

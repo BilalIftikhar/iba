@@ -8,12 +8,20 @@ export default function CustomersPage() {
     const [customers, setCustomers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+
     useEffect(() => {
         adminFetch<any[]>('/customers')
             .then(data => setCustomers(data))
             .catch(console.error)
             .finally(() => setLoading(false));
     }, []);
+
+    // Pagination logic
+    const totalPages = Math.ceil(customers.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedCustomers = customers.slice(startIndex, startIndex + itemsPerPage);
 
     return (
         <div className="pb-6 fade-in">
@@ -82,8 +90,13 @@ export default function CustomersPage() {
             </div>
 
             <div className="card overflow-hidden border border-slate-200">
-                <div className="p-5 border-b border-slate-100 bg-white">
+                <div className="p-5 border-b border-slate-100 bg-white shadow-sm flex items-center justify-between">
                     <h2 className="text-[16px] font-bold text-slate-800">All Customers <span className="text-slate-400 font-medium text-sm ml-1">— {customers.length} total</span></h2>
+                    {totalPages > 1 && (
+                        <div className="text-[12px] text-slate-500 font-bold uppercase tracking-wider">
+                           Page {currentPage} of {totalPages}
+                        </div>
+                    )}
                 </div>
                 <div className="overflow-x-auto bg-white">
                     <table className="w-full text-left bg-white">
@@ -114,7 +127,7 @@ export default function CustomersPage() {
                                     </td>
                                 </tr>
                             )}
-                            {!loading && customers.map(c => (
+                            {!loading && paginatedCustomers.map(c => (
                                 <tr key={c.id} className="border-t border-slate-100 group">
                                     <td className="px-5 py-4 whitespace-nowrap">
                                         <div className="flex items-center gap-3">
@@ -174,6 +187,40 @@ export default function CustomersPage() {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination Footer */}
+                {totalPages > 1 && (
+                    <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+                        <div className="text-[13px] font-bold text-slate-400">
+                            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, customers.length)} of {customers.length} entries
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-[13px] font-black text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-all active:scale-95 shadow-sm"
+                            >
+                                Previous
+                            </button>
+                            {Array.from({ length: totalPages }).map((_, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => setCurrentPage(i + 1)}
+                                    className={`w-9 h-9 rounded-xl border text-[13px] font-black transition-all active:scale-95 shadow-sm ${currentPage === i + 1 ? 'bg-[#00c2ff] border-[#00c2ff] text-white shadow-[#00c2ff]/20' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-[13px] font-black text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-all active:scale-95 shadow-sm"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

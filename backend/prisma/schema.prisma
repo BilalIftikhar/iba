@@ -30,6 +30,7 @@ enum BookingType {
 
 enum BookingStatus {
   draft
+  submitted
   booked
   in_review
   in_progress
@@ -128,6 +129,8 @@ model User {
   created_at               DateTime  @default(now())
   /// Soft-delete: null means active, set to timestamp on deletion
   deleted_at               DateTime?
+  /// Internal admin notes about the customer
+  admin_notes              String?
 
   // ── Relations ──────────────────────────────────────────────
   account_manager  User?          @relation("AccountManager", fields: [account_manager_id], references: [id])
@@ -193,6 +196,8 @@ model Booking {
   timeline_setup_days Int?
   /// Projected deployment date — set by admin
   deployment_date     DateTime?
+  /// Admin internal notes
+  admin_notes         String?
   booked_at           DateTime?
   deployed_at         DateTime?
 

@@ -102,6 +102,9 @@ function PipelineFleetManager({ rows, isMobile, onStopRequest, onShowSummary }: 
     const [tab, setTab] = useState<TabKey>('deployed');
     const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
     const [openMessengerIndex, setOpenMessengerIndex] = useState<number | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+
     const tabs: { key: TabKey; label: string }[] = [
         { key: 'deployed', label: 'Deployed' },
         { key: 'review', label: 'Review' },
@@ -115,8 +118,17 @@ function PipelineFleetManager({ rows, isMobile, onStopRequest, onShowSummary }: 
         return true;
     });
 
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [tab]);
+
+    // Pagination logic
+    const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedRows = filteredRows.slice(startIndex, startIndex + itemsPerPage);
+
     return (
-        <div className="bg-white rounded-[20px] border border-slate-100 shadow-sm mt-8">
+        <div className="bg-white rounded-[20px] border border-slate-100 shadow-sm mt-8 overflow-hidden">
             <div className={`px-6 py-4 flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'}`}>
                 <h2 className="text-[15px] font-bold text-slate-800 tracking-tight">Pipeline Fleet Manager</h2>
                 <div className="flex items-center gap-1 p-1 bg-slate-50 border border-slate-100 rounded-[10px]">
@@ -140,7 +152,7 @@ function PipelineFleetManager({ rows, isMobile, onStopRequest, onShowSummary }: 
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                        {filteredRows.length === 0 ? (
+                        {paginatedRows.length === 0 ? (
                             <tr>
                                 <td colSpan={4} className="px-6 py-12 text-center">
                                     <div className="flex flex-col items-center justify-center gap-2">
@@ -153,7 +165,7 @@ function PipelineFleetManager({ rows, isMobile, onStopRequest, onShowSummary }: 
                                 </td>
                             </tr>
                         ) : (
-                            filteredRows.map((row, i) => (
+                            paginatedRows.map((row, i) => (
                                 <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
@@ -181,7 +193,7 @@ function PipelineFleetManager({ rows, isMobile, onStopRequest, onShowSummary }: 
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
+                                        <div className="flex items-center justify-end gap-2 text-right">
                                             {tab !== 'drafts' && (
                                                 <div className="relative z-20">
                                                     <button 
@@ -218,7 +230,7 @@ function PipelineFleetManager({ rows, isMobile, onStopRequest, onShowSummary }: 
                                                         {openMenuIndex === i && (
                                                             <>
                                                                 <div className="fixed inset-0 z-10" onClick={() => setOpenMenuIndex(null)} />
-                                                                <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-100 rounded-xl shadow-xl z-20 overflow-hidden">
+                                                                <div className="absolute right-0 mt-2 w-40 bg-white border border-slate-100 rounded-xl shadow-xl z-20 overflow-hidden text-left">
                                                                     <button 
                                                                         onClick={() => {
                                                                             onShowSummary?.();
@@ -242,6 +254,31 @@ function PipelineFleetManager({ rows, isMobile, onStopRequest, onShowSummary }: 
                     </tbody>
                 </table>
             </div>
+
+            {/* Pagination controls */}
+            {totalPages > 1 && (
+                <div className="px-6 py-4 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-[12px] font-bold text-slate-400">
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(prev => prev - 1)}
+                            className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-[12px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-all active:scale-95"
+                        >
+                            Prev
+                        </button>
+                        <button 
+                            disabled={currentPage === totalPages}
+                            onClick={() => setCurrentPage(prev => prev + 1)}
+                            className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-[12px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-all active:scale-95"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

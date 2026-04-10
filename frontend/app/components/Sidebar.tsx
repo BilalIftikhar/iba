@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { fetchProfile, fetchUnreadCount, markNotificationsAsRead } from '../lib/api';
+import { getSocket } from '../lib/socket';
 
 const PAGES_NAV = [
     {
@@ -157,12 +158,13 @@ export function Sidebar() {
     }, []);
 
     useEffect(() => {
-        const socket = (window as any).socket;
-        if (!socket) return;
+        const socket = getSocket();
         
         const handleNewNotif = () => setUnreadNotifications(prev => prev + 1);
         socket.on('client:new_notification', handleNewNotif);
-        return () => socket.off('client:new_notification', handleNewNotif);
+        return () => {
+            socket.off('client:new_notification', handleNewNotif);
+        };
     }, []);
 
     const handleLogout = (e: React.MouseEvent) => {
@@ -210,7 +212,9 @@ export function Sidebar() {
                             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                         </svg>
                         {unreadNotifications > 0 && (
-                            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+                            <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 border-2 border-white shadow-sm">
+                                {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                            </span>
                         )}
                     </button>
                     <div className="relative">

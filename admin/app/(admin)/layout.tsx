@@ -8,7 +8,7 @@ import { AdminSidebar } from '../components/Sidebar';
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [badges, setBadges] = useState({ activeBookings: 0, unreadMessages: 0 });
+    const [badges, setBadges] = useState({ activeBookings: 0, unreadMessages: 0, totalBookings: 0 });
 
     useEffect(() => {
         const token = getAdminToken();
@@ -18,8 +18,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }
 
         // Fetch initial stats for badges
-        adminFetch<{ activeBookings: number; unreadMessages: number }>('/stats')
-            .then(data => setBadges({ activeBookings: data.activeBookings || 0, unreadMessages: data.unreadMessages || 0 }))
+        adminFetch<{ activeBookings: number; unreadMessages: number; totalBookings: number }>('/stats')
+            .then(data => setBadges({ 
+                activeBookings: data.activeBookings || 0, 
+                unreadMessages: data.unreadMessages || 0,
+                totalBookings: data.totalBookings || 0
+            }))
             .catch(() => {})
             .finally(() => setLoading(false));
     }, [router]);

@@ -9,11 +9,12 @@ export function ReviewBookingPanel({
     onClose, 
     onUpdated 
 }: { 
-    bookingId: string;
-    onClose: () => void;
-    onUpdated?: () => void;
+    bookingId: string; 
+    onClose: () => void; 
+    onUpdated?: () => void; 
 }) {
     const [booking, setBooking] = useState<any>(null);
+    const [messages, setMessages] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [sending, setSending] = useState(false);
@@ -43,9 +44,9 @@ export function ReviewBookingPanel({
     useScrollLock();
 
     useEffect(() => {
-        adminFetch<any>(`/bookings/${bookingId}`)
-            .then(res => {
-                const b = res;
+        const loadBooking = async () => {
+            try {
+                const b = await adminFetch<any>(`/bookings/${bookingId}`);
                 setBooking(b);
                 setForm({
                     status: b.status || 'submitted',
@@ -58,14 +59,48 @@ export function ReviewBookingPanel({
                     admin_notes: b.admin_notes || '',
                     quick_message: '',
                 });
-            })
-            .catch(console.error)
-            .finally(() => setLoading(false));
+
+                // Load thread messages
+                const threadRes = await adminFetch<any>(`/bookings/${bookingId}/thread`);
+                if (threadRes?.data?.messages) {
+                    setMessages(threadRes.data.messages);
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadBooking();
     }, [bookingId]);
 
     const handleClose = () => {
         setVisible(false);
         setTimeout(onClose, 280);
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setSending(true);
+        try {
+            const up = await adminUploadFile(file);
+            await adminFetch(`/bookings/${bookingId}/message`, {
+                method: 'POST',
+                body: JSON.stringify({ attachment_url: up.url, attachment_name: up.name }),
+            });
+            // Refresh messages
+            const threadRes = await adminFetch<any>(`/bookings/${bookingId}/thread`);
+            if (threadRes?.data?.messages) {
+                setMessages(threadRes.data.messages);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Failed to upload file');
+        } finally {
+            setSending(false);
+        }
     };
 
     const handleSave = async () => {
@@ -97,15 +132,21 @@ export function ReviewBookingPanel({
     const handleSendMessage = async () => {
         if (!form.quick_message.trim()) return;
         setSending(true);
+        const body = form.quick_message;
+        setForm(f => ({ ...f, quick_message: '' }));
+
         try {
-            await adminFetch(`/bookings/${bookingId}/message`, {
+            const res = await adminFetch<any>(`/bookings/${bookingId}/message`, {
                 method: 'POST',
-                body: JSON.stringify({ message: form.quick_message }),
+                body: JSON.stringify({ message: body }),
             });
-            setForm(f => ({ ...f, quick_message: '' }));
-            alert('Message sent!');
+            
+            if (res?.data) {
+                setMessages(prev => [...prev, res.data]);
+            }
         } catch {
             alert('Failed to send message');
+            setForm(f => ({ ...f, quick_message: body }));
         } finally {
             setSending(false);
         }
@@ -323,21 +364,68 @@ export function ReviewBookingPanel({
                         />
                     </div>
 
-                    {/* QUICK MESSAGE */}
+                    {/* BOOKING CHAT (Successor to Quick Message) */}
                     <div className="space-y-6">
-                        <div className="mb-6"><SectionDivider title="Quick Message" /></div>
-                        <div>
+                        <div className="mb-2"><SectionDivider title="Booking Conversation" /></div>
+                        
+                        {/* Messages Area */}
+                        <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-4 max-h-[400px] overflow-y-auto flex flex-col gap-4">
+                            {messages.length === 0 ? (
+                                <div className="py-8 text-center text-slate-400 text-[13px] font-medium italic">
+                                    No messages yet. Send your first message below.
+                                </div>
+                            ) : (
+                                messages.map((m: any) => {
+                                    const isAdmin = m.sender_type === 'admin';
+                                    return (
+                                        <div key={m.id} className={`flex flex-col ${isAdmin ? 'items-end' : 'items-start'}`}>
+                                            <div className={`px-4 py-2.5 rounded-2xl max-w-[85%] text-[13px] font-medium leading-relaxed ${
+                                                isAdmin 
+                                                    ? 'bg-[#4a8df8] text-white rounded-tr-sm shadow-sm' 
+                                                    : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm shadow-sm'
+                                            }`}>
+                                                {m.body}
+                                                {m.attachment_url && (
+                                                    <div className={`mt-2 pt-2 border-t ${isAdmin ? 'border-white/10' : 'border-slate-100'}`}>
+                                                        <a href={m.attachment_url} target="_blank" rel="noopener noreferrer" className={`text-[11px] font-bold underline ${isAdmin ? 'text-white' : 'text-blue-500'}`}>
+                                                            📎 {m.attachment_name || 'Attachment'}
+                                                        </a>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="text-[10px] text-slate-400 font-bold mt-1 px-1 opacity-70">
+                                                {isAdmin ? 'IBA Admin' : (booking.client?.first_name || 'Client')} · {new Date(m.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        {/* Input Area */}
+                        <div className="space-y-3">
                             <textarea
                                 value={form.quick_message}
                                 onChange={(e) => setForm(f => ({ ...f, quick_message: e.target.value }))}
+                                onKeyDown={(e) => {
+                                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                                        handleSendMessage();
+                                    }
+                                }}
                                 placeholder="Send a message to the customer about this booking..."
-                                className="w-full border border-slate-200 rounded-lg py-3.5 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#4a8df8] transition-colors min-h-[90px] resize-y shadow-sm mb-3 placeholder:text-slate-400"
+                                className="w-full border border-slate-200 rounded-lg py-3.5 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#4a8df8] transition-colors min-h-[90px] resize-none shadow-sm mb-1 placeholder:text-slate-400"
                             />
-                            <button className="flex items-center gap-2 px-3.5 py-2 border border-slate-200 rounded-full text-[12px] font-bold text-slate-600 hover:bg-slate-50 transition-colors bg-white shadow-sm">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                                Attach File
-                            </button>
-                            <p className="text-[11px] text-slate-400 font-medium mt-2">PNG, JPG, PDF, DOCX up to 10MB</p>
+                            <div className="flex items-center justify-between">
+                                <input type="file" id="booking-chat-upload" className="hidden" onChange={handleFileUpload} />
+                                <button 
+                                    onClick={() => document.getElementById('booking-chat-upload')?.click()}
+                                    className="flex items-center gap-2 px-3.5 py-2 border border-slate-200 rounded-full text-[11px] font-bold text-slate-500 hover:bg-slate-50 transition-colors bg-white shadow-sm disabled:opacity-50"
+                                >
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                    Attach File
+                                </button>
+                                <span className="text-[11px] text-slate-400 font-medium italic">Sent instantly to customer (Ctrl+Enter to send)</span>
+                            </div>
                         </div>
                     </div>
 

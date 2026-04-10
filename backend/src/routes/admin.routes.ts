@@ -28,6 +28,7 @@ adminRouter.get('/stats', async (_req: Request, res: Response) => {
             activeWorkflows,
             newBookingsThisMonth,
             newCustomersThisMonth,
+            totalBookings,
             bookingsByStatus,
             recentBookings,
             recentSignups,
@@ -35,8 +36,8 @@ adminRouter.get('/stats', async (_req: Request, res: Response) => {
             // Total customers
             prisma.user.count({ where: { deleted_at: null } }),
 
-            // Active bookings (in_review + in_progress)
-            prisma.booking.count({ where: { status: { in: ['in_review', 'in_progress'] } } }),
+            // Active bookings (submitted + booked + in_review + in_progress)
+            prisma.booking.count({ where: { status: { in: ['submitted', 'booked', 'in_review', 'in_progress'] } } }),
 
             // Unread messages sent by clients (admin hasn't read)
             prisma.message.count({ where: { sender_type: 'client', read_at: null } }),
@@ -58,6 +59,9 @@ adminRouter.get('/stats', async (_req: Request, res: Response) => {
                     deleted_at: null
                 }
             }),
+
+            // Total meaningful bookings (not draft/cancelled)
+            prisma.booking.count({ where: { status: { notIn: ['draft', 'cancelled'] } } }),
 
             // Bookings grouped by status
             prisma.booking.groupBy({ by: ['status'], _count: { id: true } }),
@@ -94,6 +98,7 @@ adminRouter.get('/stats', async (_req: Request, res: Response) => {
                 mrr,
                 newBookingsThisMonth,
                 newCustomersThisMonth,
+                totalBookings,
                 bookingsByStatus,
                 recentBookings,
                 recentSignups,
@@ -230,6 +235,7 @@ adminRouter.patch('/bookings/:id', async (req: Request, res: Response) => {
     try {
         const {
             status, title, timeline_setup_days, deployment_date,
+            use_case, tools_list, schedule_frequency, admin_notes
         } = req.body;
 
         const existing = await prisma.booking.findUnique({ where: { id: req.params.id } });
@@ -242,6 +248,10 @@ adminRouter.patch('/bookings/:id', async (req: Request, res: Response) => {
                 ...(title !== undefined && { title }),
                 ...(timeline_setup_days !== undefined && { timeline_setup_days }),
                 ...(deployment_date !== undefined && { deployment_date: new Date(deployment_date) }),
+                ...(use_case !== undefined && { use_case }),
+                ...(tools_list !== undefined && { tools_list: typeof tools_list === 'string' ? tools_list.split(',').map((s: string) => s.trim()).filter(Boolean) : tools_list }),
+                ...(schedule_frequency !== undefined && { schedule_frequency }),
+                ...(admin_notes !== undefined && { admin_notes }),
                 ...(status === 'deployed' && !existing.deployed_at && { deployed_at: new Date() }),
                 ...(status === 'in_review' && !existing.booked_at && { booked_at: new Date() }),
             },
@@ -252,6 +262,106 @@ adminRouter.patch('/bookings/:id', async (req: Request, res: Response) => {
     } catch (err) {
         console.error('[PATCH /admin/bookings/:id]', err);
         return res.status(500).json({ error: 'Failed to update booking' });
+    }
+});
+
+// GET /api/v1/admin/bookings/:id/thread — Get the message thread for a booking
+adminRouter.get('/bookings/:id/thread', async (req: Request, res: Response) => {
+    try {
+        let thread = await prisma.messageThread.findFirst({
+            where: { related_entity_id: req.params.id, category: 'booking' },
+            include: { messages: { orderBy: { sent_at: 'asc' } } }
+        });
+
+        // If no thread exists, create one (lazy creation)
+        if (!thread) {
+            const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+            if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+            thread = await prisma.messageThread.create({
+                data: {
+                    client_id: booking.client_id,
+                    category: 'booking',
+                    related_entity_id: req.params.id,
+                    last_message_at: new Date(),
+                },
+                include: { messages: true }
+            });
+        }
+
+        return res.json({ success: true, data: thread });
+    } catch (err) {
+        console.error('[GET /admin/bookings/:id/thread]', err);
+        return res.status(500).json({ error: 'Failed to fetch booking thread' });
+    }
+});
+
+// POST /api/v1/admin/bookings/:id/message — Send a message about a booking
+adminRouter.post('/bookings/:id/message', async (req: Request, res: Response) => {
+    try {
+        const { message: body, attachment_url, attachment_name } = req.body;
+        const adminId = req.auth.userId;
+
+        if (!body?.trim() && !attachment_url) return res.status(400).json({ error: 'Message or attachment is required' });
+
+        const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+        if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+        // Find or create thread
+        let thread = await prisma.messageThread.findFirst({
+            where: { related_entity_id: req.params.id, category: 'booking' }
+        });
+
+        if (!thread) {
+            thread = await prisma.messageThread.create({
+                data: {
+                    client_id: booking.client_id,
+                    category: 'booking',
+                    related_entity_id: req.params.id,
+                    last_message_at: new Date(),
+                }
+            });
+        }
+
+        const newMessage = await prisma.message.create({
+            data: {
+                thread_id: thread.id,
+                sender_id: adminId,
+                sender_type: 'admin',
+                body: body?.trim() || '',
+                attachment_url: attachment_url || null,
+                attachment_name: attachment_name || null,
+            }
+        });
+
+        // Update thread
+        await prisma.messageThread.update({
+            where: { id: thread.id },
+            data: { last_message_at: new Date() }
+        });
+
+        // Create notification for client
+        const notification = await prisma.notification.create({
+            data: {
+                client_id: booking.client_id,
+                type: 'message',
+                title: `New message: ${booking.title || 'Your Booking'}`,
+                body: body?.trim() ? body.trim().substring(0, 100) : 'Sent an attachment',
+                booking_id: booking.id,
+            }
+        });
+
+        // Real-time
+        const { io } = require('../index');
+        if (io) {
+            io.to(`client:${booking.client_id}`).emit('client:new_message', { thread_id: thread.id, message: newMessage });
+            io.to(`client:${booking.client_id}`).emit('client:new_notification', { notification });
+        }
+
+        return res.status(201).json({ success: true, data: newMessage });
+    } catch (err) {
+        console.error('[POST /admin/bookings/:id/message]', err);
+        return res.status(500).json({ error: 'Failed to send booking message' });
     }
 });
 
@@ -310,6 +420,8 @@ adminRouter.get('/customers/:id', async (req: Request, res: Response) => {
                 subscription: true,
                 bookings: { orderBy: { booked_at: 'desc' }, take: 20 },
                 workflows: { orderBy: { created_at: 'desc' }, take: 20 },
+                credentials: { where: { deleted_at: null } },
+                team_as_owner: { include: { member: { select: { id: true, first_name: true, last_name: true, email: true } } } },
                 message_threads: {
                     orderBy: { last_message_at: 'desc' },
                     take: 5,
@@ -328,11 +440,36 @@ adminRouter.get('/customers/:id', async (req: Request, res: Response) => {
 // PATCH /api/v1/admin/customers/:id
 adminRouter.patch('/customers/:id', async (req: Request, res: Response) => {
     try {
-        const { account_manager_id } = req.body;
+        const { 
+            first_name, last_name, company_name, email, phone, timezone, hourly_rate,
+            admin_notes, plan, status, automations_limit, billing_cycle, account_manager_id 
+        } = req.body;
+
         const updated = await prisma.user.update({
             where: { id: req.params.id },
-            data: { ...(account_manager_id !== undefined && { account_manager_id }) },
-            select: { id: true, email: true, first_name: true, last_name: true, account_manager_id: true }
+            data: { 
+                ...(first_name !== undefined && { first_name }),
+                ...(last_name !== undefined && { last_name }),
+                ...(company_name !== undefined && { company_name }),
+                ...(email !== undefined && { email }),
+                ...(phone !== undefined && { phone }),
+                ...(timezone !== undefined && { timezone }),
+                ...(hourly_rate !== undefined && { hourly_rate: parseFloat(hourly_rate) }),
+                ...(admin_notes !== undefined && { admin_notes }),
+                ...(account_manager_id !== undefined && { account_manager_id }),
+                // Update subscription if any subscription field is provided
+                ...(((plan !== undefined || status !== undefined || automations_limit !== undefined || billing_cycle !== undefined)) && {
+                    subscription: {
+                        update: {
+                            ...(plan !== undefined && { plan: plan.toLowerCase() as any }),
+                            ...(status !== undefined && { status: (status === 'Suspended' ? 'cancelled' : status.toLowerCase()) as any }),
+                            ...(automations_limit !== undefined && { automations_limit: parseInt(automations_limit) }),
+                            ...(billing_cycle !== undefined && { billing_cycle: billing_cycle.toLowerCase() as any }),
+                        }
+                    }
+                })
+            },
+            include: { subscription: true }
         });
         return res.json({ success: true, data: updated });
     } catch (err) {

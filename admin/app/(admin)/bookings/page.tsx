@@ -42,11 +42,17 @@ export default function BookingsPage() {
     const [bookings, setBookings] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
     const loadBookings = () => {
         setLoading(true);
         adminFetch<any[]>('/bookings')
-            .then(data => setBookings(data))
+            .then(data => {
+                setBookings(data);
+                // Reset to page 1 if data refreshes
+                setCurrentPage(1);
+            })
             .catch(console.error)
             .finally(() => setLoading(false));
     };
@@ -54,6 +60,11 @@ export default function BookingsPage() {
     useEffect(() => {
         loadBookings();
     }, []);
+
+    // Pagination logic
+    const totalPages = Math.ceil(bookings.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedBookings = bookings.slice(startIndex, startIndex + itemsPerPage);
 
     return (
         <div className="pb-6 fade-in">
@@ -117,8 +128,15 @@ export default function BookingsPage() {
             </div>
 
             <div className="card overflow-hidden border border-slate-200">
-                <div className="p-5 border-b border-slate-100 bg-white">
+                <div className="p-5 border-b border-slate-100 bg-white shadow-sm flex items-center justify-between">
                     <h2 className="text-[16px] font-bold text-slate-800">All Bookings <span className="text-slate-400 font-medium text-sm ml-1">— {bookings.length} total</span></h2>
+                    
+                    {/* Pagination Info */}
+                    {totalPages > 1 && (
+                        <div className="text-[12px] text-slate-500 font-bold uppercase tracking-wider">
+                           Page {currentPage} of {totalPages}
+                        </div>
+                    )}
                 </div>
                 <div className="overflow-x-auto bg-white">
                     <table className="w-full text-left bg-white">
@@ -148,23 +166,23 @@ export default function BookingsPage() {
                                     </td>
                                 </tr>
                             )}
-                            {!loading && bookings.map(b => (
+                            {!loading && paginatedBookings.map(b => (
                                 <tr key={b.id} className="border-t border-slate-100 group">
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="text-[13px] font-semibold text-slate-600 font-mono">#BOOK-{Math.abs(b.id.hashCode?.() || parseInt(b.id.substring(0,8), 16) % 10000)}</span>
+                                        <span className="text-[13px] font-semibold text-slate-600 font-mono">#BOOK-{parseInt(b.id.substring(0,8), 16) % 10000}</span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                                    <td className="px-6 py-4 whitespace-nowrap text-slate-800">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                                            <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-500 flex items-center justify-center text-xs font-black shrink-0">
                                                 {b.client?.first_name?.[0]}{b.client?.last_name?.[0]}
                                             </div>
                                             <div>
-                                                <div className="text-[14px] font-semibold text-slate-800">{b.client?.first_name} {b.client?.last_name}</div>
+                                                <div className="text-[14px] font-bold text-slate-800">{b.client?.first_name} {b.client?.last_name}</div>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-[14px] font-medium text-slate-700">{b.title || 'Lead Scoring Automation'}</div>
+                                        <div className="text-[14px] font-bold text-slate-700">{b.title || 'Lead Scoring Automation'}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <TypeBadge type={b.type} />
@@ -177,11 +195,11 @@ export default function BookingsPage() {
                                     </td>
                                     <td className="px-6 py-4 text-right whitespace-nowrap">
                                         <div className="flex items-center justify-end gap-2 text-right">
-                                            <Link href={`/bookings/${b.id}`} className="text-[12px] font-bold border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+                                            <Link href={`/bookings/${b.id}`} className="text-[12px] font-black border border-slate-200 px-4 py-1.5 rounded-xl text-slate-600 hover:bg-slate-50 transition-all active:scale-95 shadow-sm">
                                                 {['submitted', 'in_review'].includes(b.status) ? 'Review' : 'Open'}
                                             </Link>
-                                            <Link href={`/messages`} className="text-[12px] font-bold border border-slate-200 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                                            <Link href={`/messages`} className="text-[12px] font-black border border-slate-200 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
                                             </Link>
                                         </div>
                                     </td>
@@ -190,9 +208,41 @@ export default function BookingsPage() {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination Footer */}
+                {totalPages > 1 && (
+                    <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+                        <div className="text-[13px] font-bold text-slate-400">
+                            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, bookings.length)} of {bookings.length} entries
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-[13px] font-black text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-all active:scale-95 shadow-sm"
+                            >
+                                Previous
+                            </button>
+                            {Array.from({ length: totalPages }).map((_, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => setCurrentPage(i + 1)}
+                                    className={`w-9 h-9 rounded-xl border text-[13px] font-black transition-all active:scale-95 shadow-sm ${currentPage === i + 1 ? 'bg-[#00c2ff] border-[#00c2ff] text-white shadow-[#00c2ff]/20' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-[13px] font-black text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-all active:scale-95 shadow-sm"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
-            
-            {showCreateModal && <CreateBookingModal onClose={() => setShowCreateModal(false)} onCreated={loadBookings} />}
         </div>
     );
 }

@@ -143,7 +143,7 @@ function MobileLogCard({ row, onViewDetails }: { row: RunRow; onViewDetails: () 
 }
 
 // ─── Execution Log Table (Desktop) ────────────────────────────────
-const ROWS_PER_PAGE = 5;
+const ROWS_PER_PAGE = 10;
 interface LogTableProps { rows: RunRow[]; onViewDetails: () => void; }
 
 function ExecutionLog({ rows, onViewDetails }: LogTableProps) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { fetchUnreadCount } from '../lib/api';
 import { NotificationModal } from './NotificationModal';
+import { getSocket } from '../lib/socket';
 
 interface HeaderBarProps {
   title: string;
@@ -23,12 +24,13 @@ export function HeaderBar({ title }: HeaderBarProps) {
   }, []);
 
   useEffect(() => {
-    const socket = (window as any).socket;
-    if (!socket) return;
+    const socket = getSocket();
     
     const handleNewNotif = () => setBadgeCount(prev => prev + 1);
     socket.on('client:new_notification', handleNewNotif);
-    return () => socket.off('client:new_notification', handleNewNotif);
+    return () => {
+        socket.off('client:new_notification', handleNewNotif);
+    };
   }, []);
 
   return (
@@ -50,7 +52,7 @@ export function HeaderBar({ title }: HeaderBarProps) {
             onClick={() => setIsModalOpen(true)}
             className="w-9 h-9 flex items-center justify-center rounded-[8px] bg-[#FFFFFF] text-slate-400 hover:bg-slate-50 border border-slate-200 transition-colors relative"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18 s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             {badgeCount > 0 && (
               <span
                 className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 shadow-md shadow-red-200 ring-2 ring-white"

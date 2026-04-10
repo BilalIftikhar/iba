@@ -20,6 +20,7 @@ interface MessageThread {
     id: string;
     client: { first_name: string; last_name: string; email: string };
     category: string;
+    related_entity_id?: string;
     unreadCount: number;
     last_message_at: string;
     messages: { body: string }[];
@@ -145,16 +146,16 @@ export function DashboardClient({ data, threads }: Props) {
 
     useEffect(() => {
         const socket = getSocket();
-        
+
         const handleNewMessage = (data: any) => {
             console.log('[Dashboard] New live message received:', data);
             // Refresh data from server to get updated unread counts and lists
-            window.location.reload(); 
+            window.location.reload();
             // In a more complex app, we'd use SWR's mutate() or similar for a partial silent refresh
         };
 
         socket.on('admin:new_message', handleNewMessage);
-        
+
         return () => {
             socket.off('admin:new_message', handleNewMessage);
         };
@@ -164,40 +165,162 @@ export function DashboardClient({ data, threads }: Props) {
         <>
             <div className="pt-4 pb-12 fade-in space-y-5">
                 {/* ── Page Header ──────────────────────────────── */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-[26px] font-bold text-slate-800 tracking-tight">Dashboard</h1>
-                    <p className="text-slate-500 text-sm mt-0.5 font-medium">Welcome back — here&apos;s what needs your attention</p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4" style={{ marginBottom: '30px' }}>
+                    <div>
+                        <h1 className="text-[26px] font-bold text-slate-800 tracking-tight">Dashboard</h1>
+                        <p className="text-slate-500 text-sm mt-0.5 font-medium">Welcome back — here&apos;s what needs your attention</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Link href="/messages" className="btn btn-secondary font-bold text-[#00C2FF]">
+                            + New Message
+                        </Link>
+                        <button onClick={() => setShowCreateModal(true)} className="btn btn-primary font-bold shadow-sm">
+                            + Create Booking
+                        </button>
+                    </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <Link href="/messages" className="btn btn-secondary font-bold text-[#00C2FF]">
-                        + New Message
-                    </Link>
-                    <button onClick={() => setShowCreateModal(true)} className="btn btn-primary font-bold shadow-sm">
-                        + Create Booking
-                    </button>
+
+                {/* ── Stat Cards ───────────────────────────────── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5" style={{ marginBottom: '30px' }}>
+                    <StatCard label="Total Customers" value={data.totalCustomers} trend="this month" trendValue={`↑ ${data.newCustomersThisMonth}`} isPositive={true} />
+                    <StatCard label="Active Bookings" value={data.activeBookings} trend="this week" trendValue={`↑ ${data.newBookingsThisMonth || 2}`} isPositive={true} />
+                    <StatCard label="Unread Messages" value={data.unreadMessages} trend="need reply" trendValue={`${data.unreadMessages}`} isPositive={false} />
+                    <StatCard label="MRR" value={`$${(data.mrr / 1000).toFixed(1)}k`} trend="vs last month" trendValue="↑ 12%" isPositive={true} />
                 </div>
-            </div>
 
-            {/* ── Stat Cards ───────────────────────────────── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                <StatCard label="Total Customers" value={data.totalCustomers} trend="this month" trendValue={`↑ ${data.newCustomersThisMonth}`} isPositive={true} />
-                <StatCard label="Active Bookings" value={data.activeBookings} trend="this week" trendValue={`↑ ${data.newBookingsThisMonth || 2}`} isPositive={true} />
-                <StatCard label="Unread Messages" value={data.unreadMessages} trend="need reply" trendValue={`${data.unreadMessages}`} isPositive={false} />
-                <StatCard label="MRR" value={`$${(data.mrr / 1000).toFixed(1)}k`} trend="vs last month" trendValue="↑ 12%" isPositive={true} />
-            </div>
+                {/* ── Two-col: Bookings + Messages ─────────────── */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5" style={{ marginBottom: '30px' }}>
 
-            {/* ── Two-col: Bookings + Messages ─────────────── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    {/* New Bookings */}
+                    <SectionCard>
+                        <SectionHeader
+                            title="New Bookings — Action Required"
+                            subtitle="Submitted, waiting for your review"
+                            action={
+                                <Link href="/bookings" className="text-[12px] font-bold border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+                                    View all
+                                </Link>
+                            }
+                        />
+                        <div className="overflow-x-auto px-2 py-4">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="border-b border-slate-100">
+                                        <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Customer</th>
+                                        <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Type</th>
+                                        <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Status</th>
+                                        <th className="px-6 py-3"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.recentBookings.length === 0 && (
+                                        <tr>
+                                            <td colSpan={4} className="px-6 py-8 text-center text-sm text-slate-400 font-medium">
+                                                No pending bookings right now.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {data.recentBookings.slice(0, 7).map(b => (
+                                        <tr key={b.id} className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-[#00c2ff]/10 text-[#00c2ff] flex items-center justify-center text-xs font-bold shrink-0">
+                                                        {b.client.first_name[0]}{b.client.last_name[0]}
+                                                    </div>
+                                                    <span className="text-[13px] font-semibold text-slate-700">{b.client.first_name} {b.client.last_name}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <TypeBadge type={b.type} />
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <StatusBadge status={b.status} />
+                                            </td>
+                                            <td className="px-6 py-4 text-right whitespace-nowrap">
+                                                <button
+                                                    onClick={() => setReviewBookingId(b.id)}
+                                                    className="inline-flex items-center justify-center text-[12px] font-bold border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
+                                                >
+                                                    Review
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </SectionCard>
 
-                {/* New Bookings */}
+                    {/* Unread Messages */}
+                    <SectionCard>
+                        <SectionHeader
+                            title="Unread Messages"
+                            subtitle="Customers waiting for a reply"
+                            action={
+                                <Link href="/messages" className="text-[12px] font-bold border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+                                    View all
+                                </Link>
+                            }
+                        />
+                        <div className="overflow-x-auto px-2 py-4">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="border-b border-slate-100">
+                                        <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Customer</th>
+                                        <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Re: Booking</th>
+                                        <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Time</th>
+                                        <th className="px-6 py-3"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {unreadThreads.length === 0 && (
+                                        <tr>
+                                            <td colSpan={4} className="px-6 py-8 text-center text-sm text-slate-400 font-medium">
+                                                No unread messages.
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {unreadThreads.map(t => (
+                                        <tr key={t.id} className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">
+                                                        {t.client.first_name[0]}{t.client.last_name[0]}
+                                                    </div>
+                                                    <span className="text-[13px] font-semibold text-slate-700">{t.client.first_name}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className="text-[12px] font-bold text-slate-500 font-mono">
+                                                    {t.related_entity_id ? `#BOOK-${t.related_entity_id.substring(t.related_entity_id.length - 4).toUpperCase()}` : '—'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className="text-[12px] font-medium text-slate-400">{timeAgo(t.last_message_at)}</span>
+                                            </td>
+                                            <td className="px-6 py-4 text-right whitespace-nowrap">
+                                                <button
+                                                    onClick={() => setReplyThreadId(t.id)}
+                                                    className="inline-flex items-center justify-center text-[12px] font-bold border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
+                                                >
+                                                    Reply
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </SectionCard>
+                </div>
+
+                {/* ── Recent Signups ────────────────────────────── */}
                 <SectionCard>
                     <SectionHeader
-                        title="New Bookings — Action Required"
-                        subtitle="Submitted, waiting for your review"
+                        title="Recent Customer Signups"
                         action={
-                            <Link href="/bookings" className="text-[12px] font-bold border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
-                                View all
+                            <Link href="/customers" className="text-[12px] font-bold border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+                                View all customers
                             </Link>
                         }
                     />
@@ -206,41 +329,51 @@ export function DashboardClient({ data, threads }: Props) {
                             <thead>
                                 <tr className="border-b border-slate-100">
                                     <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Customer</th>
-                                    <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Type</th>
+                                    <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Plan</th>
+                                    <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Bookings</th>
+                                    <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Joined</th>
                                     <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Status</th>
                                     <th className="px-6 py-3"></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {data.recentBookings.length === 0 && (
-                                    <tr>
-                                        <td colSpan={4} className="px-6 py-8 text-center text-sm text-slate-400 font-medium">
-                                            No pending bookings right now.
-                                        </td>
-                                    </tr>
-                                )}
-                                {data.recentBookings.map(b => (
-                                    <tr key={b.id} className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
+                                {data.recentSignups.map(c => (
+                                    <tr key={c.id} className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-[#00c2ff]/10 text-[#00c2ff] flex items-center justify-center text-xs font-bold shrink-0">
-                                                    {b.client.first_name[0]}{b.client.last_name[0]}
+                                                    {c.first_name[0]}{c.last_name[0]}
                                                 </div>
-                                                <span className="text-[13px] font-semibold text-slate-700">{b.client.first_name} {b.client.last_name}</span>
+                                                <div>
+                                                    <div className="text-[13px] font-bold text-slate-800">{c.first_name} {c.last_name}</div>
+                                                    <div className="text-[11px] text-slate-400 font-medium">{c.email}</div>
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <TypeBadge type={b.type} />
+                                            {c.subscription?.plan === 'pro' ? (
+                                                <span className="text-[11px] font-bold text-[#00c2ff] bg-[#00c2ff]/10 px-2.5 py-1 rounded-full">Pro</span>
+                                            ) : c.subscription?.plan === 'enterprise' ? (
+                                                <span className="text-[11px] font-bold text-purple-600 bg-purple-100 px-2.5 py-1 rounded-full">Enterprise</span>
+                                            ) : (
+                                                <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">Free</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <StatusBadge status={b.status} />
+                                            <span className="text-[13px] font-semibold text-slate-700">{c.bookings?.length || 0}</span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className="text-[13px] text-slate-500">{new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">Active</span>
                                         </td>
                                         <td className="px-6 py-4 text-right whitespace-nowrap">
                                             <button
-                                                onClick={() => setReviewBookingId(b.id)}
+                                                onClick={() => setManageCustomerId(c.id)}
                                                 className="inline-flex items-center justify-center text-[12px] font-bold border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
                                             >
-                                                Review
+                                                Manage
                                             </button>
                                         </td>
                                     </tr>
@@ -249,136 +382,6 @@ export function DashboardClient({ data, threads }: Props) {
                         </table>
                     </div>
                 </SectionCard>
-
-                {/* Unread Messages */}
-                <SectionCard>
-                    <SectionHeader
-                        title="Unread Messages"
-                        subtitle="Customers waiting for a reply"
-                        action={
-                            <Link href="/messages" className="text-[12px] font-bold border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
-                                View all
-                            </Link>
-                        }
-                    />
-                    <div className="overflow-x-auto px-2 py-4">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="border-b border-slate-100">
-                                    <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Customer</th>
-                                    <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Re: Booking</th>
-                                    <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Time</th>
-                                    <th className="px-6 py-3"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {unreadThreads.length === 0 && (
-                                    <tr>
-                                        <td colSpan={4} className="px-6 py-8 text-center text-sm text-slate-400 font-medium">
-                                            No unread messages.
-                                        </td>
-                                    </tr>
-                                )}
-                                {unreadThreads.map(t => (
-                                    <tr key={t.id} className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">
-                                                    {t.client.first_name[0]}{t.client.last_name[0]}
-                                                </div>
-                                                <span className="text-[13px] font-semibold text-slate-700">{t.client.first_name}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-[12px] font-bold text-slate-500 font-mono">{t.id.substring(0, 8).toUpperCase()}</span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-[12px] font-medium text-slate-400">{timeAgo(t.last_message_at)}</span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right whitespace-nowrap">
-                                            <button 
-                                                onClick={() => setReplyThreadId(t.id)}
-                                                className="inline-flex items-center justify-center text-[12px] font-bold border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
-                                            >
-                                                Reply
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </SectionCard>
-            </div>
-
-            {/* ── Recent Signups ────────────────────────────── */}
-            <SectionCard>
-                <SectionHeader
-                    title="Recent Customer Signups"
-                    action={
-                        <Link href="/customers" className="text-[12px] font-bold border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
-                            View all customers
-                        </Link>
-                    }
-                />
-                <div className="overflow-x-auto px-2 py-4">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="border-b border-slate-100">
-                                <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Customer</th>
-                                <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Plan</th>
-                                <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Bookings</th>
-                                <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Joined</th>
-                                <th className="px-6 py-3 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Status</th>
-                                <th className="px-6 py-3"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.recentSignups.map(c => (
-                                <tr key={c.id} className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-[#00c2ff]/10 text-[#00c2ff] flex items-center justify-center text-xs font-bold shrink-0">
-                                                {c.first_name[0]}{c.last_name[0]}
-                                            </div>
-                                            <div>
-                                                <div className="text-[13px] font-bold text-slate-800">{c.first_name} {c.last_name}</div>
-                                                <div className="text-[11px] text-slate-400 font-medium">{c.email}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        {c.subscription?.plan === 'pro' ? (
-                                            <span className="text-[11px] font-bold text-[#00c2ff] bg-[#00c2ff]/10 px-2.5 py-1 rounded-full">Pro</span>
-                                        ) : c.subscription?.plan === 'enterprise' ? (
-                                            <span className="text-[11px] font-bold text-purple-600 bg-purple-100 px-2.5 py-1 rounded-full">Enterprise</span>
-                                        ) : (
-                                            <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">Free</span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="text-[13px] font-semibold text-slate-700">{c.bookings?.length || 0}</span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="text-[13px] text-slate-500">{new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">Active</span>
-                                    </td>
-                                    <td className="px-6 py-4 text-right whitespace-nowrap">
-                                        <button 
-                                            onClick={() => setManageCustomerId(c.id)}
-                                            className="inline-flex items-center justify-center text-[12px] font-bold border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
-                                        >
-                                            Manage
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </SectionCard>
 
             </div>
 

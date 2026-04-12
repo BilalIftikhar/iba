@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAdminToken, adminFetch } from '../lib/api';
 import { AdminSidebar } from '../components/Sidebar';
+import { getSocket } from '../lib/socket';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -17,15 +18,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             return;
         }
 
-        // Fetch initial stats for badges
-        adminFetch<{ activeBookings: number; unreadMessages: number; totalBookings: number }>('/stats')
-            .then(data => setBadges({ 
-                activeBookings: data.activeBookings || 0, 
-                unreadMessages: data.unreadMessages || 0,
-                totalBookings: data.totalBookings || 0
-            }))
-            .catch(() => {})
-            .finally(() => setLoading(false));
+        const fetchStats = () => {
+            adminFetch<{ activeBookings: number; unreadMessages: number; totalBookings: number }>('/stats')
+                .then(data => setBadges({ 
+                    activeBookings: data.activeBookings || 0, 
+                    unreadMessages: data.unreadMessages || 0,
+                    totalBookings: data.totalBookings || 0
+                }))
+                .catch(() => {})
+                .finally(() => setLoading(false));
+        };
+
+        // Initial fetch
+        fetchStats();
+
+        // Real-time updates via socket
+        const socket = getSocket();
+        socket.on('admin:new_message', fetchStats);
+
+        // Fallback polling (every 30s)
+        const interval = setInterval(fetchStats, 30000);
+
+        return () => {
+            socket.off('admin:new_message', fetchStats);
+            clearInterval(interval);
+        };
     }, [router]);
 
     if (loading) {

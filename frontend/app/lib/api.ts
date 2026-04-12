@@ -151,6 +151,10 @@ export async function fetchBookings<T = any>(): Promise<T[]> {
     return apiFetch<T[]>('/bookings');
 }
 
+export async function fetchTemplates<T = any>(): Promise<T[]> {
+    return apiFetch<T[]>('/bookings/templates');
+}
+
 export async function fetchCredentials<T = any>(): Promise<T[]> {
     return apiFetch<T[]>('/credentials');
 }

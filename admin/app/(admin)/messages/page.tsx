@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { CreateBookingModal } from '../../components/CreateBookingModal';
 import { adminFetch, adminUploadFile } from '../../lib/api';
 import { getSocket } from '../../lib/socket';
 
@@ -26,6 +27,7 @@ function formatTime(dateString: string) {
 }
 
 export default function MessagesPage() {
+    const [showCreateModal, setShowCreateModal] = useState(false);
     const [threads, setThreads] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
@@ -173,7 +175,8 @@ export default function MessagesPage() {
     };
 
     return (
-        <div className="pb-6 fade-in flex flex-col" style={{ minHeight: 'calc(100dvh - 6rem)' }}>
+        <>
+            <div className="pb-6 fade-in flex flex-col" style={{ minHeight: 'calc(100dvh - 6rem)' }}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 shrink-0">
                 <div>
                     <h1 className="text-[28px] font-bold text-slate-800 tracking-tight">Messages</h1>
@@ -183,7 +186,7 @@ export default function MessagesPage() {
                     <button className="btn btn-secondary font-bold text-slate-600 shadow-sm bg-white">
                         + New Message
                     </button>
-                    <button className="btn btn-primary font-bold shadow-sm">
+                    <button onClick={() => setShowCreateModal(true)} className="btn btn-primary font-bold shadow-sm">
                         + Create Booking
                     </button>
                 </div>
@@ -221,7 +224,9 @@ export default function MessagesPage() {
                                         <p className="text-[13px] text-slate-500 line-clamp-2 leading-relaxed tracking-wide pr-6 relative">
                                             {t.messages?.[0]?.body || 'No messages yet.'}
                                             {t.unreadCount > 0 && (
-                                                <span className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#3b82f6]"></span>
+                                                <span className="absolute right-0 top-1/2 -translate-y-1/2 bg-[#3b82f6] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-sm ring-2 ring-white animate-in zoom-in duration-300">
+                                                    {t.unreadCount > 9 ? '9+' : t.unreadCount}
+                                                </span>
                                             )}
                                         </p>
                                         {t.related_entity_id && (
@@ -363,5 +368,7 @@ export default function MessagesPage() {
                 </div>
             </div>
         </div>
+        {showCreateModal && <CreateBookingModal onClose={() => setShowCreateModal(false)} />}
+        </>
     );
 }

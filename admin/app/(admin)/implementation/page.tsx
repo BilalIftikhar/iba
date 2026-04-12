@@ -1,10 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { CreateBookingModal } from '../../components/CreateBookingModal';
 import { ImplementationModal } from '../../components/Modals';
 import { adminFetch } from '../../lib/api';
 
 export default function ImplementationPage() {
+    const [showCreateModal, setShowCreateModal] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [templates, setTemplates] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -25,10 +28,10 @@ export default function ImplementationPage() {
                     <p className="text-slate-500 text-sm mt-1 font-medium">Manage deployment, training, and maintenance packages</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button className="btn btn-secondary font-bold text-slate-600 bg-white">
+                    <Link href="/messages" className="btn btn-secondary font-bold text-[#00C2FF] bg-white">
                         + New Message
-                    </button>
-                    <button className="btn btn-primary font-bold shadow-sm">
+                    </Link>
+                    <button onClick={() => setShowCreateModal(true)} className="btn btn-primary font-bold shadow-sm">
                         + Create Booking
                     </button>
                 </div>
@@ -117,7 +120,8 @@ export default function ImplementationPage() {
                     </div>
                 ))}
             </div>
-            {showModal && <ImplementationModal onClose={() => setShowModal(false)} />}
+            {showModal && <ImplementationModal onClose={() => setShowModal(false)} />}        {showCreateModal && <CreateBookingModal onClose={() => setShowCreateModal(false)} />}
+        
         </div>
     );
 }

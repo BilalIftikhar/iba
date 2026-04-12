@@ -14,87 +14,317 @@ export function ModalBackdrop({ children, onClose }: { children: React.ReactNode
     );
 }
 
-export function AutomationTemplateModal({ onClose }: { onClose: () => void }) {
+export function DeleteConfirmationModal({ 
+    title, 
+    message, 
+    onConfirm, 
+    onCancel,
+    confirmText = "Delete",
+    isDeleting = false
+}: { 
+    title: string, 
+    message: string, 
+    onConfirm: () => void, 
+    onCancel: () => void,
+    confirmText?: string,
+    isDeleting?: boolean
+}) {
     return (
-        <ModalBackdrop onClose={onClose}>
-            {/* Header */}
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between shrink-0">
-                <div>
-                    <h2 className="text-[18px] font-bold text-slate-800">New Template</h2>
-                    <p className="text-[13px] text-slate-500 font-medium">Fill in the details below</p>
+        <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onCancel}></div>
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-[400px] p-6 animate-in zoom-in-95 duration-200 text-center">
+                <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
                 </div>
-                <button onClick={onClose} className="p-2 -mr-2 text-slate-400 hover:text-slate-600 transition-colors">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
+                <h3 className="text-[20px] font-bold text-slate-800 mb-2">{title}</h3>
+                <p className="text-[14px] font-medium text-slate-500 leading-relaxed mb-6 px-4">
+                    {message}
+                </p>
+                <div className="flex gap-3">
+                    <button 
+                        onClick={onCancel}
+                        className="flex-1 bg-white border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-[14px] hover:bg-slate-50 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={onConfirm}
+                        disabled={isDeleting}
+                        className="flex-1 bg-rose-500 text-white font-bold py-3 rounded-xl text-[14px] hover:bg-rose-600 transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        {isDeleting && <svg className="animate-spin w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" strokeOpacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>}
+                        {confirmText}
+                    </button>
+                </div>
             </div>
+        </div>
+    );
+}
+
+export function AutomationTemplateModal({ 
+    onClose,
+    onSave,
+    initialData
+}: { 
+    onClose: () => void, 
+    onSave?: (data: any) => void,
+    initialData?: any
+}) {
+    const [visible, setVisible] = useState(false);
+    const [form, setForm] = useState({
+        id: initialData?.id,
+        title: initialData?.title || '',
+        type: initialData?.type || '',
+        short_description: initialData?.short_description || '',
+        full_description: initialData?.full_description || '',
+        use_case: initialData?.use_case || '',
+        time_saved_weekly: initialData?.time_saved_weekly || '',
+        time_saved_yearly: initialData?.time_saved_yearly || '',
+        roi_yearly: initialData?.roi_yearly || '',
+        setup_time: initialData?.setup_time || '',
+        difficulty: initialData?.difficulty || 'Easy',
+        tools: initialData?.tools || '',
+        run_schedule: initialData?.run_schedule || '',
+        is_published: initialData?.is_published ?? true,
+        display_order: initialData?.display_order || 10
+    });
+
+    useEffect(() => {
+        requestAnimationFrame(() => setVisible(true));
+    }, []);
+
+    const handleClose = () => {
+        setVisible(false);
+        setTimeout(onClose, 300);
+    };
+
+    const handleSave = () => {
+        if (onSave) onSave(form);
+        handleClose();
+    };
+
+    const panelClass = `relative w-full max-w-[650px] bg-white h-full shadow-2xl flex flex-col transform transition-transform duration-300 ease-out ${visible ? 'translate-x-0' : 'translate-x-full'}`;
+
+    return (
+        <div className="fixed inset-0 z-[99999] flex justify-end">
+            <div className={`absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`} onClick={handleClose} />
             
-            {/* Body */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-6">
-                <div>
-                    <label className="block text-[11px] font-bold tracking-widest text-[#64748b] uppercase mb-2">Difficulty</label>
-                    <select className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-[14px] font-medium text-slate-700 outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] hover:border-slate-300 transition-colors bg-white appearance-none">
-                        <option>Easy</option>
-                        <option>Medium</option>
-                        <option>Hard</option>
-                    </select>
-                </div>
-
-                <div className="relative pt-2">
-                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                        <div className="w-full border-t border-slate-100"></div>
+            <div className={panelClass}>
+                {/* Header */}
+                <div className="px-8 py-6 border-b border-slate-100 flex items-start justify-between shrink-0">
+                    <div>
+                        <h2 className="text-[22px] font-bold text-slate-800 tracking-tight">{initialData ? 'Edit Template' : 'New Template'}</h2>
+                        <p className="text-[13px] text-slate-500 font-medium mt-1">Fill in the details below</p>
                     </div>
-                    <div className="relative flex justify-start">
-                        <span className="pr-3 bg-white text-[11px] font-bold tracking-widest text-[#64748b] uppercase">Tools & Schedule</span>
-                    </div>
+                    <button onClick={handleClose} className="p-2 -mr-2 text-slate-400 hover:text-slate-600 transition-colors">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
                 </div>
+                
+                {/* Body */}
+                <div className="p-8 overflow-y-auto flex-1 space-y-12 pb-16">
+                    
+                    {/* IDENTITY */}
+                    <div className="space-y-6 pt-2">
+                        <div className="text-[11px] font-extrabold tracking-widest text-slate-400 uppercase mb-4">Identity</div>
 
-                <div>
-                    <label className="block text-[11px] font-bold tracking-widest text-[#64748b] uppercase mb-2">Tools / Integrations (Comma-separated)</label>
-                    <input type="text" placeholder="e.g. HubSpot, Clearbit, LinkedIn API, OpenAI GPT-4" className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-[14px] font-medium text-slate-700 outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] hover:border-slate-300 transition-colors placeholder:text-slate-400" />
-                </div>
+                        <div className="grid grid-cols-2 gap-5">
+                            <div>
+                                <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Template Name *</label>
+                                <input 
+                                    type="text" 
+                                    value={form.title}
+                                    onChange={e => setForm({...form, title: e.target.value})}
+                                    placeholder="e.g. Lead Enrichment Pipeline" 
+                                    className="w-full border border-slate-200 rounded-lg py-3 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#3b82f6] transition-colors shadow-sm placeholder:text-slate-400" 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Category *</label>
+                                <select 
+                                    value={form.type}
+                                    onChange={e => setForm({...form, type: e.target.value})}
+                                    className="w-full border border-slate-200 rounded-lg py-3 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#3b82f6] transition-colors shadow-sm bg-white"
+                                >
+                                    <option value="">— Select —</option>
+                                    <option value="Marketing">Marketing</option>
+                                    <option value="Sales">Sales</option>
+                                    <option value="Finance">Finance</option>
+                                    <option value="Content">Content</option>
+                                    <option value="Reporting">Reporting</option>
+                                    <option value="Security">Security</option>
+                                    <option value="HR">HR</option>
+                                </select>
+                            </div>
+                        </div>
 
-                <div>
-                    <label className="block text-[11px] font-bold tracking-widest text-[#64748b] uppercase mb-2">Run Schedule</label>
-                    <input type="text" placeholder="e.g. Real-time on new lead" className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-[14px] font-medium text-slate-700 outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] hover:border-slate-300 transition-colors placeholder:text-slate-400" />
-                </div>
+                        <div>
+                            <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Short Description *</label>
+                            <input 
+                                type="text" 
+                                value={form.short_description}
+                                onChange={e => setForm({...form, short_description: e.target.value})}
+                                placeholder="One-line description shown on the template card" 
+                                className="w-full border border-slate-200 rounded-lg py-3 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#3b82f6] transition-colors shadow-sm placeholder:text-slate-400" 
+                            />
+                        </div>
 
-                <div className="relative pt-2">
-                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                        <div className="w-full border-t border-slate-100"></div>
-                    </div>
-                    <div className="relative flex justify-start">
-                        <span className="pr-3 bg-white text-[11px] font-bold tracking-widest text-[#64748b] uppercase">Publishing</span>
-                    </div>
-                </div>
-
-                <div className="border border-slate-200 rounded-xl p-4 flex items-start gap-4 cursor-pointer hover:bg-slate-50 transition-colors bg-[#f8fafc]/50">
-                    <div className="mt-0.5">
-                        <div className="w-11 h-6 bg-[#10b981] rounded-full p-1 transition-colors relative">
-                            <div className="w-4 h-4 bg-white rounded-full absolute right-1"></div>
+                        <div>
+                            <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Full Description (Shown in Popup)</label>
+                            <textarea 
+                                value={form.full_description}
+                                onChange={e => setForm({...form, full_description: e.target.value})}
+                                placeholder="Detailed description shown when customer clicks View Details..." 
+                                className="w-full border border-slate-200 rounded-lg py-3.5 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#3b82f6] transition-colors min-h-[100px] shadow-sm placeholder:text-slate-400 resize-y" 
+                            />
                         </div>
                     </div>
-                    <div>
-                        <div className="text-[14px] font-bold text-slate-800">Published — visible to customers</div>
-                        <div className="text-[13px] text-slate-500 font-medium mt-0.5">Toggle off to save as draft without showing to customers</div>
+
+                    {/* USE CASE */}
+                    <div className="space-y-6 border-t border-slate-100 pt-8" style={{ marginTop: '48px' }}>
+                        <div className="text-[11px] font-extrabold tracking-widest text-slate-400 uppercase mb-4">Use Case Text</div>
+
+                        <div>
+                            <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Use Case (Auto-fills Customer Booking Form)</label>
+                            <textarea 
+                                value={form.use_case}
+                                onChange={e => setForm({...form, use_case: e.target.value})}
+                                placeholder="The full use case that will be injected into the customer's booking form..." 
+                                className="w-full border border-slate-200 rounded-lg py-3.5 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#3b82f6] transition-colors min-h-[120px] shadow-sm placeholder:text-slate-400 resize-y" 
+                            />
+                        </div>
+                    </div>
+
+                    {/* STATS & ROI */}
+                    <div className="space-y-6 border-t border-slate-100 pt-8" style={{ marginTop: '48px' }}>
+                        <div className="text-[11px] font-extrabold tracking-widest text-slate-400 uppercase mb-4">Stats & ROI</div>
+
+                        <div className="grid grid-cols-2 gap-5">
+                            <div>
+                                <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Time Saved (Weekly)</label>
+                                <input 
+                                    type="text" 
+                                    value={form.time_saved_weekly}
+                                    onChange={e => setForm({...form, time_saved_weekly: e.target.value})}
+                                    placeholder="e.g. 5 hrs / week" 
+                                    className="w-full border border-slate-200 rounded-lg py-3 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#3b82f6] transition-colors shadow-sm" 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Time Saved (Yearly)</label>
+                                <input 
+                                    type="text"
+                                    value={form.time_saved_yearly}
+                                    onChange={e => setForm({...form, time_saved_yearly: e.target.value})}
+                                    placeholder="e.g. 260 hrs / year" 
+                                    className="w-full border border-slate-200 rounded-lg py-3 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#3b82f6] transition-colors shadow-sm" 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">ROI Expected (Yearly)</label>
+                                <input 
+                                    type="text" 
+                                    value={form.roi_yearly}
+                                    onChange={e => setForm({...form, roi_yearly: e.target.value})}
+                                    placeholder="e.g. $2,400 / year" 
+                                    className="w-full border border-slate-200 rounded-lg py-3 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#3b82f6] transition-colors shadow-sm" 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Setup Time</label>
+                                <input 
+                                    type="text"
+                                    value={form.setup_time}
+                                    onChange={e => setForm({...form, setup_time: e.target.value})}
+                                    placeholder="e.g. 3-5 days" 
+                                    className="w-full border border-slate-200 rounded-lg py-3 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#3b82f6] transition-colors shadow-sm" 
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Difficulty</label>
+                            <select 
+                                value={form.difficulty}
+                                onChange={e => setForm({...form, difficulty: e.target.value})}
+                                className="w-full border border-slate-200 rounded-lg py-3 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#3b82f6] transition-colors shadow-sm bg-white"
+                            >
+                                <option>Easy</option>
+                                <option>Medium</option>
+                                <option>Hard</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* TOOLS & SCHEDULE */}
+                    <div className="space-y-6 border-t border-slate-100 pt-8" style={{ marginTop: '48px' }}>
+                        <div className="text-[11px] font-extrabold tracking-widest text-slate-400 uppercase mb-4">Tools & Schedule</div>
+
+                        <div>
+                            <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Tools / Integrations (Comma-separated)</label>
+                            <input 
+                                type="text" 
+                                value={form.tools}
+                                onChange={e => setForm({...form, tools: e.target.value})}
+                                placeholder="e.g. HubSpot, Clearbit, LinkedIn API, OpenAI GPT-4" 
+                                className="w-full border border-slate-200 rounded-lg py-3 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#3b82f6] transition-colors shadow-sm" 
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Run Schedule</label>
+                            <input 
+                                type="text" 
+                                value={form.run_schedule}
+                                onChange={e => setForm({...form, run_schedule: e.target.value})}
+                                placeholder="e.g. Real-time on new lead" 
+                                className="w-full border border-slate-200 rounded-lg py-3 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#3b82f6] transition-colors shadow-sm" 
+                            />
+                        </div>
+                    </div>
+
+                    {/* PUBLISHING */}
+                    <div className="space-y-6 pb-8 border-t border-slate-100 pt-8" style={{ marginTop: '48px' }}>
+                        <div className="text-[11px] font-extrabold tracking-widest text-slate-400 uppercase mb-4">Publishing</div>
+
+                        <div 
+                            className={`border rounded-xl p-5 flex items-start gap-5 transition-all cursor-pointer ${form.is_published ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-slate-50/50'}`}
+                            onClick={() => setForm({...form, is_published: !form.is_published})}
+                        >
+                            <div className="mt-1">
+                                <div className={`w-12 h-6 rounded-full transition-colors relative ${form.is_published ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${form.is_published ? 'right-1' : 'left-1'}`}></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div className="text-[15px] font-bold text-slate-800">{form.is_published ? 'Published — visible to customers' : 'Draft — hidden from customers'}</div>
+                                <div className="text-[13px] text-slate-500 font-medium mt-0.5">Toggle to control visibility on the customer dashboard</div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-[11px] font-bold tracking-widest text-slate-500 uppercase mb-2">Display Order (Lower = Appears First)</label>
+                            <input 
+                                type="number" 
+                                value={form.display_order}
+                                onChange={e => setForm({...form, display_order: parseInt(e.target.value) || 0})}
+                                className="w-full border border-slate-200 rounded-lg py-3 px-4 text-[14px] font-medium text-slate-800 outline-none focus:border-[#3b82f6] transition-colors shadow-sm" 
+                            />
+                        </div>
                     </div>
                 </div>
-
-                <div>
-                    <label className="block text-[11px] font-bold tracking-widest text-[#64748b] uppercase mb-2">Display Order (Lower = appears first)</label>
-                    <input type="number" defaultValue="10" className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-[14px] font-medium text-slate-700 outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] hover:border-slate-300 transition-colors" />
+                
+                {/* Footer */}
+                <div className="px-8 py-5 border-t border-slate-100 bg-white flex items-center gap-4 shrink-0 shadow-[0_-2px_12px_rgba(0,0,0,0.04)]">
+                    <button onClick={handleSave} className="bg-[#4a8df8] hover:bg-[#3b82f6] text-white font-bold py-2.5 px-6 rounded-full text-[14px] transition-colors shadow-sm flex items-center justify-center min-w-[150px]">
+                        Save & Publish
+                    </button>
+                    <button onClick={handleClose} className="bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-bold py-2.5 px-6 rounded-full text-[14px] transition-colors shadow-sm min-w-[100px]">
+                        Cancel
+                    </button>
                 </div>
             </div>
-            
-            {/* Footer */}
-            <div className="px-6 py-5 border-t border-slate-100 bg-white rounded-b-xl flex gap-3 shrink-0">
-                <button className="bg-[#3b82f6] text-white font-bold py-2.5 px-6 rounded-lg text-[14px] hover:bg-blue-600 transition-colors shadow-sm">
-                    Save & Publish
-                </button>
-                <button className="bg-white border border-slate-200 text-slate-600 font-bold py-2.5 px-6 rounded-lg text-[14px] hover:bg-slate-50 transition-colors shadow-sm">
-                    Save as Draft
-                </button>
-            </div>
-        </ModalBackdrop>
+        </div>
     );
 }
 
@@ -439,3 +669,363 @@ export function ImplementationModal({ onClose }: { onClose: () => void }) {
         </ModalBackdrop>
     );
 }
+
+export function CustomerSegmentModal({ 
+    onClose, 
+    onSave,
+    onDelete,
+    initialData
+}: { 
+    onClose: () => void, 
+    onSave?: (data: any) => void,
+    onDelete?: (id: string) => void,
+    initialData?: any 
+}) {
+    const [name, setName] = useState(initialData?.name || '');
+    const [description, setDescription] = useState(initialData?.description || '');
+    const [color, setColor] = useState(initialData?.color || '#3b82f6');
+    const [rulePlan, setRulePlan] = useState(initialData?.rule_plan || 'Any plan');
+    const [ruleStatus, setRuleStatus] = useState(initialData?.rule_status || 'Any status');
+    const [ruleBookings, setRuleBookings] = useState(initialData?.rule_bookings_min || '');
+    const [ruleJoinedDays, setRuleJoinedDays] = useState(initialData?.rule_joined_days || '');
+    const [ruleAutomationPct, setRuleAutomationPct] = useState(initialData?.rule_automation_pct || '');
+
+    const [allCustomers, setAllCustomers] = useState<any[]>([]);
+    const [selectedMembers, setSelectedMembers] = useState<string[]>(
+        initialData?.manual_members?.map((m: any) => m.id) || []
+    );
+
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDelete = async () => {
+        if (!initialData?.id) return;
+        setIsDeleting(true);
+        try {
+            await adminFetch(`/segments/${initialData.id}`, { method: 'DELETE' });
+            if (onDelete) onDelete(initialData.id);
+            onClose();
+        } catch (err) {
+            console.error(err);
+            alert('Failed to delete segment');
+        } finally {
+            setIsDeleting(false);
+            setShowDeleteConfirm(false);
+        }
+    };
+
+    useEffect(() => {
+        // Fetch everyone so we can select them
+        adminFetch<any>('/customers?limit=1000')
+            .then(res => {
+                // Handle both array response or object with data property
+                const list = Array.isArray(res) ? res : (res?.data || []);
+                setAllCustomers(list);
+            })
+            .catch(err => {
+                console.error('Failed to fetch customers for segment:', err);
+            });
+    }, []);
+
+    const toggleMember = (id: string) => {
+        setSelectedMembers(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    };
+
+    const colors = ['#3b82f6', '#a855f7', '#ef4444', '#10b981', '#f59e0b', '#14b8a6'];
+
+    const handleSave = () => {
+        const payload = {
+            name, description, color,
+            rule_plan: rulePlan,
+            rule_status: ruleStatus,
+            rule_bookings_min: ruleBookings,
+            rule_joined_days: ruleJoinedDays,
+            rule_automation_pct: ruleAutomationPct,
+            manual_member_ids: selectedMembers
+        };
+        if (onSave) onSave(payload);
+    };
+
+    const [visible, setVisible] = useState(false);
+
+    useEffect(() => {
+        requestAnimationFrame(() => setVisible(true));
+    }, []);
+
+    const handleClose = () => {
+        setVisible(false);
+        setTimeout(onClose, 300);
+    };
+
+    const panelClass = `relative w-full max-w-[600px] bg-white h-full shadow-2xl flex flex-col transform transition-transform duration-300 ease-out ${visible ? 'translate-x-0' : 'translate-x-full'}`;
+
+    return (
+        <div className="fixed inset-0 z-[99999] flex justify-end">
+            <div className={`absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`} onClick={handleClose} />
+            
+            <div className={panelClass}>
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <h2 className="text-[18px] font-bold text-slate-800">{initialData ? 'Edit Segment' : 'New Segment'}</h2>
+                <button onClick={handleClose} className="p-2 -mr-2 text-slate-400 hover:text-slate-600 transition-colors">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                
+                {/* Segment Details */}
+                <div className="relative">
+                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div className="w-full border-t border-slate-100"></div>
+                    </div>
+                    <div className="relative flex justify-start">
+                        <span className="pr-3 bg-white text-[11px] font-bold tracking-widest text-[#64748b] uppercase">Segment Details</span>
+                    </div>
+                </div>
+
+                <div className="space-y-0">
+                    <div style={{ marginBottom: '14px' }}>
+                        <label className="block text-[11px] font-bold tracking-widest text-[#64748b] uppercase" style={{ marginBottom: '2px', marginTop: '3px' }}>Segment Name *</label>
+                        <input value={name} onChange={e => setName(e.target.value)} type="text" placeholder="e.g. High Value Customers" className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-[14px] font-medium text-slate-700 outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] hover:border-slate-300 transition-colors placeholder:text-slate-400" />
+                    </div>
+                    <div style={{ marginBottom: '14px' }}>
+                        <label className="block text-[11px] font-bold tracking-widest text-[#64748b] uppercase" style={{ marginBottom: '2px', marginTop: '3px' }}>Description</label>
+                        <input value={description} onChange={e => setDescription(e.target.value)} type="text" placeholder="What defines this segment?" className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-[14px] font-medium text-slate-700 outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] hover:border-slate-300 transition-colors placeholder:text-slate-400" />
+                    </div>
+                    <div style={{ marginBottom: '14px' }}>
+                        <label className="block text-[11px] font-bold tracking-widest text-[#64748b] uppercase" style={{ marginBottom: '2px', marginTop: '3px' }}>Colour</label>
+                        <div className="flex items-center gap-3">
+                            {colors.map(c => (
+                                <button 
+                                    key={c} 
+                                    onClick={() => setColor(c)}
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${color === c ? 'ring-2 ring-offset-2 ring-blue-500 scale-110' : 'hover:scale-110'}`}
+                                    style={{ backgroundColor: c }}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Auto-Assignment Rules */}
+                <div className="relative pt-2">
+                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div className="w-full border-t border-slate-100"></div>
+                    </div>
+                    <div className="relative flex justify-start">
+                        <span className="pr-3 bg-white text-[11px] font-bold tracking-widest text-[#64748b] uppercase">Auto-Assignment Rules</span>
+                    </div>
+                </div>
+
+                <div className="bg-[#f8fafc]/50 border border-slate-100 rounded-xl p-4 text-[13px] font-medium text-slate-500 leading-relaxed shadow-sm">
+                    Rules are used to automatically tag customers. Manual assignment is always available on the customer profile.
+                </div>
+
+                <div className="space-y-0">
+                    <div style={{ marginBottom: '14px' }}>
+                        <label className="block text-[11px] font-bold tracking-widest text-[#64748b] uppercase" style={{ marginBottom: '2px', marginTop: '3px' }}>Plan is</label>
+                        <select value={rulePlan} onChange={e => setRulePlan(e.target.value)} className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-[14px] font-medium text-slate-700 outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] hover:border-slate-300 transition-colors bg-white">
+                            <option>Any plan</option>
+                            <option>Basic</option>
+                            <option>Pro</option>
+                            <option>Enterprise</option>
+                        </select>
+                    </div>
+                    <div style={{ marginBottom: '14px' }}>
+                        <label className="block text-[11px] font-bold tracking-widest text-[#64748b] uppercase" style={{ marginBottom: '2px', marginTop: '3px' }}>Status is</label>
+                        <select value={ruleStatus} onChange={e => setRuleStatus(e.target.value)} className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-[14px] font-medium text-slate-700 outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] hover:border-slate-300 transition-colors bg-white">
+                            <option>Any status</option>
+                            <option>Active</option>
+                            <option>Trial</option>
+                            <option>Past Due</option>
+                            <option>Cancelled</option>
+                        </select>
+                    </div>
+                    <div style={{ marginBottom: '14px' }}>
+                        <label className="block text-[11px] font-bold tracking-widest text-[#64748b] uppercase" style={{ marginBottom: '2px', marginTop: '3px' }}>Bookings count is at least</label>
+                        <input value={ruleBookings} onChange={e => setRuleBookings(e.target.value)} type="text" placeholder="e.g. 2 (leave blank to ignore)" className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-[14px] font-medium text-slate-700 outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] hover:border-slate-300 transition-colors placeholder:text-slate-400" />
+                    </div>
+                    <div style={{ marginBottom: '14px' }}>
+                        <label className="block text-[11px] font-bold tracking-widest text-[#64748b] uppercase" style={{ marginBottom: '2px', marginTop: '3px' }}>Joined within last (days)</label>
+                        <input value={ruleJoinedDays} onChange={e => setRuleJoinedDays(e.target.value)} type="text" placeholder="e.g. 30 (leave blank to ignore)" className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-[14px] font-medium text-slate-700 outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] hover:border-slate-300 transition-colors placeholder:text-slate-400" />
+                    </div>
+                    <div style={{ marginBottom: '14px' }}>
+                        <label className="block text-[11px] font-bold tracking-widest text-[#64748b] uppercase" style={{ marginBottom: '2px', marginTop: '3px' }}>Automation usage above (%)</label>
+                        <input value={ruleAutomationPct} onChange={e => setRuleAutomationPct(e.target.value)} type="text" placeholder="e.g. 70 (leave blank to ignore)" className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-[14px] font-medium text-slate-700 outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] hover:border-slate-300 transition-colors placeholder:text-slate-400" />
+                    </div>
+                </div>
+
+                {/* Manual Members */}
+                <div className="relative pt-2">
+                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div className="w-full border-t border-slate-100"></div>
+                    </div>
+                    <div className="relative flex justify-start">
+                        <span className="pr-3 bg-white text-[11px] font-bold tracking-widest text-[#64748b] uppercase">Manual Members</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-[11px] font-bold tracking-widest text-[#64748b] uppercase" style={{ marginBottom: '2px', marginTop: '3px' }}>Add specific customers</label>
+                    <select 
+                        className="w-full border border-slate-200 rounded-lg py-2.5 px-3 text-[14px] font-medium text-slate-700 outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] hover:border-slate-300 transition-colors bg-white"
+                        onChange={(e) => {
+                            if (e.target.value) toggleMember(e.target.value);
+                            e.target.value = '';
+                        }}
+                    >
+                        <option value="">— Select to add —</option>
+                        {allCustomers.filter(c => !selectedMembers.includes(c.id)).map(c => (
+                            <option key={c.id} value={c.id}>{c.first_name} {c.last_name} ({c.email})</option>
+                        ))}
+                    </select>
+                    {selectedMembers.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                            {selectedMembers.map(id => {
+                                const c = allCustomers.find(x => x.id === id) || initialData?.manual_members?.find((x:any) => x.id === id);
+                                if (!c) return null;
+                                return (
+                                    <div key={id} className="flex items-center gap-1.5 bg-slate-100/80 border border-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-[13px] font-medium shadow-sm transition-colors hover:bg-slate-100">
+                                        <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-[10px] font-bold mr-1">
+                                            {c.first_name?.[0]}{c.last_name?.[0]}
+                                        </div>
+                                        {c.first_name} {c.last_name}
+                                        <button onClick={() => toggleMember(id)} className="text-slate-400 hover:text-rose-500 ml-1 transition-colors">
+                                            ×
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="px-6 py-5 border-t border-slate-100 bg-white rounded-b-xl flex justify-between shrink-0">
+                <div className="flex gap-3">
+                    <button onClick={handleSave} className="bg-[#3b82f6] text-white font-bold py-2.5 px-6 rounded-lg text-[14px] hover:bg-blue-600 transition-colors shadow-sm focus:ring-2 focus:ring-blue-500 focus:ring-offset-1">
+                        Save Segment
+                    </button>
+                    <button onClick={handleClose} className="bg-white border border-slate-200 text-slate-600 font-bold py-2.5 px-6 rounded-lg text-[14px] hover:bg-slate-50 transition-colors shadow-sm">
+                        Cancel
+                    </button>
+                </div>
+                {initialData && (
+                    <button 
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="bg-rose-50 border border-slate-100 text-rose-500 font-bold py-2.5 px-6 rounded-lg text-[14px] hover:bg-rose-100 transition-colors"
+                    >
+                        Delete
+                    </button>
+                )}
+            </div>
+            </div>
+
+            {showDeleteConfirm && (
+                <DeleteConfirmationModal
+                    title="Delete Segment"
+                    message={`Are you sure you want to delete "${name}"? This will not delete the customers, only the segment group.`}
+                    onConfirm={handleDelete}
+                    onCancel={() => setShowDeleteConfirm(false)}
+                    isDeleting={isDeleting}
+                />
+            )}
+        </div>
+    );
+}
+
+export function CustomerSegmentViewPanel({ 
+    segment, 
+    customers, 
+    onClose 
+}: { 
+    segment: any, 
+    customers: any[], 
+    onClose: () => void 
+}) {
+    const [visible, setVisible] = useState(false);
+
+    useEffect(() => {
+        requestAnimationFrame(() => setVisible(true));
+    }, []);
+
+    const handleClose = () => {
+        setVisible(false);
+        setTimeout(onClose, 300);
+    };
+
+    const panelClass = `relative w-full max-w-[600px] bg-white h-full shadow-2xl flex flex-col transform transition-transform duration-300 ease-out ${visible ? 'translate-x-0' : 'translate-x-full'}`;
+
+    return (
+        <div className="fixed inset-0 z-[99999] flex justify-end">
+            <div className={`absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`} onClick={handleClose} />
+            
+            <div className={panelClass}>
+                {/* Header */}
+                <div className="px-6 py-5 border-b border-slate-100 flex items-start justify-between shrink-0 bg-white">
+                <div>
+                    <h2 className="text-[18px] font-bold text-slate-800 flex items-center gap-2">
+                        {segment.name} <span className="text-slate-400 font-normal">— Customers</span>
+                    </h2>
+                    <p className="text-slate-500 text-[13px] font-medium mt-0.5">{customers.length} customers</p>
+                </div>
+                <button onClick={handleClose} className="px-4 py-1.5 border border-slate-200 text-slate-600 font-bold rounded-lg text-[13px] hover:bg-slate-50 transition-colors shadow-sm">
+                    Close
+                </button>
+            </div>
+            
+            <div className="p-0 overflow-y-auto flex-1 bg-white">
+                <table className="w-full text-left bg-white">
+                    <thead>
+                        <tr>
+                            <th className="pt-4 pb-3 px-6 text-[10px] font-bold tracking-widest text-slate-400 uppercase bg-white border-b border-slate-100">Customer</th>
+                            <th className="pt-4 pb-3 px-6 text-[10px] font-bold tracking-widest text-slate-400 uppercase bg-white border-b border-slate-100">Plan</th>
+                            <th className="pt-4 pb-3 px-6 text-[10px] font-bold tracking-widest text-slate-400 uppercase bg-white border-b border-slate-100">All Segments</th>
+                            <th className="pt-4 pb-3 px-6 bg-white border-b border-slate-100"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {customers.map((c, idx) => (
+                            <tr key={idx} className="border-b border-slate-50 group hover:bg-slate-50 transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-8 h-8 rounded-full text-white flex items-center justify-center text-xs font-bold shrink-0 ${['bg-indigo-500', 'bg-purple-500', 'bg-blue-500', 'bg-emerald-500'][idx % 4]}`}>
+                                            {c.first_name?.[0]}{c.last_name?.[0]}
+                                        </div>
+                                        <div className="text-[14px] font-semibold text-slate-800">{c.first_name} {c.last_name}</div>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className="text-[12px] font-bold capitalize text-[#00c2ff] bg-blue-50 px-2 py-0.5 rounded-md">{c.subscription?.plan || 'free'}</span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="flex gap-2">
+                                        {/* Since mock, conditionally render pills matching the SS */}
+                                        <span className="text-[11px] font-bold text-[#3b82f6] bg-blue-50 px-2 py-0.5 rounded-full">{segment.name}</span>
+                                        {idx % 2 === 0 && <span className="text-[11px] font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full">Power Users</span>}
+                                        {idx % 2 !== 0 && <span className="text-[11px] font-bold text-purple-500 bg-purple-50 px-2 py-0.5 rounded-full">Enterprise Clients</span>}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-right whitespace-nowrap">
+                                    <button className="text-[12px] font-bold border border-slate-200 px-4 py-1.5 rounded-lg text-slate-600 hover:bg-white transition-colors bg-slate-50">Open</button>
+                                </td>
+                            </tr>
+                        ))}
+                        {customers.length === 0 && (
+                            <tr>
+                                <td colSpan={4} className="px-6 py-12 text-center text-slate-500 text-[13px] font-medium">
+                                    No customers found in this segment.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+            </div>
+        </div>
+    );
+}
+
+

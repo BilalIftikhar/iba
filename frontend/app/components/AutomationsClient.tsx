@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { OptimizePromptButton } from './OptimizePromptButton';
 import { AnimatedTextarea } from './AnimatedTextarea';
 import { mockAiOptimize } from '../lib/mockAiOptimize';
 import { HeaderBar } from './HeaderBar';
 import { StopAutomationModal } from './StopAutomationModal';
 import { PipelineOverviewModal } from './PipelineOverviewModal';
+import { fetchTemplates } from '../lib/api';
 
 // Figma color tokens
 const F = {
@@ -77,50 +78,27 @@ interface Template {
 
 const CATEGORIES = ['All', 'Marketing', 'Sales', 'Finance', 'Content', 'Reporting', 'Security', 'HR & Recruitment'];
 
-const TEMPLATES: Template[] = [
-  {
-    id: '1', title: 'Social Media Scheduler', category: 'Marketing',
-    description: 'Automatically generates, formats and schedules posts across LinkedIn, X, and Instagram based on your URL input.',
-    timeSaved: '12h/week', roi: '4.2x ROI', users: 12,
-    iconBg: '#E0FCF9', iconColor: '#00C2FF',
-    iconSvg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-  },
-  {
-    id: '2', title: 'Email Campaign Manager', category: 'Sales',
-    description: 'Personalized outreach at scale. Analyzes lead profiles to craft custom opening lines and follows up intelligently.',
-    timeSaved: '20h/week', roi: '8.5x ROI', users: 45,
-    iconBg: '#E0FCF9', iconColor: '#00C2FF',
-    iconSvg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
-  },
-  {
-    id: '3', title: 'Weekly KPI Digest', category: 'Reporting',
-    description: 'Aggregates data from Stripe, GA4, and Shopify to create an executive summary with trend analysis.',
-    timeSaved: '5h/week', roi: '3.0x ROI', users: 8,
-    iconBg: '#E0FCF9', iconColor: '#00C2FF',
-    iconSvg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></svg>
-  },
-  {
-    id: '4', title: 'Blog Post Generator', category: 'Content',
-    description: 'Transform long-form video or audio into SEO-optimized blog posts with custom tone and style matching.',
-    timeSaved: '15h/week', roi: '5.2x ROI', users: 18,
-    iconBg: '#E0FCF9', iconColor: '#00C2FF',
-    iconSvg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16h16V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-  },
-  {
-    id: '5', title: 'Customer Ticket Auto-Replier', category: 'HR & Recruitment',
-    description: 'Connects to Zendesk or Intercom to draft high-quality responses for Level 1 support queries automatically.',
-    timeSaved: '30h/week', roi: '12.4x ROI', users: 120,
-    iconBg: '#E0FCF9', iconColor: '#00C2FF',
-    iconSvg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-  },
-  {
-    id: '6', title: 'Automated Invoice Processing', category: 'Finance',
-    description: 'Extracts data from PDF invoices using OCR and automatically reconciles them with your accounting software.',
-    timeSaved: '18h/week', roi: '6.8x ROI', users: 22,
-    iconBg: '#E0FCF9', iconColor: '#00C2FF',
-    iconSvg: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-  },
-];
+// Helper to map category to icon
+const getTemplateIcon = (category: string) => {
+  switch (category) {
+    case 'Marketing':
+      return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>;
+    case 'Sales':
+      return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>;
+    case 'Reporting':
+      return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></svg>;
+    case 'Content':
+      return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16h16V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
+    case 'Finance':
+      return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
+    case 'Security':
+      return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+    case 'HR & Recruitment':
+      return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+    default:
+      return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
+  }
+};
 
 // ─── Global Responsive CSS ───────────────────────────────────────────────────
 const css = `
@@ -295,7 +273,9 @@ function StepUseCase({
   activeCategory,
   setActiveCategory,
   onStop,
-  onShowDetail
+  onShowDetail,
+  templates,
+  loadingTemplates
 }: {
   useCase: string;
   setUseCase: (v: string) => void;
@@ -304,10 +284,12 @@ function StepUseCase({
   setActiveCategory: (v: string) => void;
   onStop: () => void;
   onShowDetail: () => void;
+  templates: Template[];
+  loadingTemplates: boolean;
 }) {
   const [isOptimized, setIsOptimized] = useState(false);
 
-  const filtered = activeCategory === 'All' ? TEMPLATES : TEMPLATES.filter(t => t.category === activeCategory);
+  const filtered = activeCategory === 'All' ? templates : templates.filter(t => t.category === activeCategory);
 
   const handleOptimize = () => {
     if (!useCase.trim()) return;
@@ -371,81 +353,87 @@ function StepUseCase({
         </div>
       </div>
 
-      {/* Templates Section */}
-      <div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <div>
-            <h3 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '18px', color: '#1F2937', margin: '0 0 4px' }}>
-              Or Browse Pre-Built Automation Templates
-            </h3>
-            <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', color: '#64748B', margin: 0 }}>
-              Select a starting point and customize it to your needs
-            </p>
-          </div>
-          <div className="aauto-categories-scroll" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {CATEGORIES.map(cat => (
-              <button key={cat} onClick={() => setActiveCategory(cat)}
-                style={{ backgroundColor: activeCategory === cat ? '#00C2FF' : '#FFFFFF', border: activeCategory === cat ? 'none' : '1px solid #E2E8F0', borderRadius: '20px', padding: '6px 16px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', color: activeCategory === cat ? '#FFFFFF' : '#64748B', transition: 'all 0.2s', boxShadow: activeCategory === cat ? '0 2px 4px rgba(0, 194, 255, 0.2)' : 'none' }}>
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="aauto-templates-grid">
-          {filtered.map(t => (
-            <div key={t.id} onClick={() => setUseCase(t.title + ': ' + t.description)} style={{ backgroundColor: '#F8FAFC', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '24px', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: t.iconBg, color: t.iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {t.iconSvg}
-                </div>
-                <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '20px', padding: '4px 10px', fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
-                  {t.category}
-                </div>
-              </div>
-              <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '15px', color: '#1E293B', margin: '0 0 8px' }}>
-                {t.title}
-              </h4>
-              <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '13px', lineHeight: '1.5em', color: '#64748B', margin: '0 0 16px', flex: 1 }}>
-                {t.description}
+        {/* Templates Section */}
+        <div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div>
+              <h3 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '18px', color: '#1F2937', margin: '0 0 4px' }}>
+                Or Browse Pre-Built Automation Templates
+              </h3>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', color: '#64748B', margin: 0 }}>
+                Select a starting point and customize it to your needs
               </p>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '4px 8px', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '10px', color: '#00C2FF' }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="12 6 12 12 16 14" /><circle cx="12" cy="12" r="10" /></svg>
-                  Save {t.timeSaved}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '4px 8px', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '10px', color: '#00C2FF' }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>
-                  {t.roi}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #E2E8F0', paddingTop: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#CBD5E1', border: '2px solid #F8FAFC', zIndex: 3 }} />
-                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#94A3B8', border: '2px solid #F8FAFC', marginLeft: '-10px', zIndex: 2 }} />
-                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#64748B', border: '2px solid #F8FAFC', marginLeft: '-10px', zIndex: 1 }} />
-                  </div>
-                  <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', color: '#64748B' }}>{t.users}+</span>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onShowDetail();
-                  }}
-                  style={{ backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', color: '#1F2937', display: 'flex', alignItems: 'center', gap: '4px' }}
-                >
-                  View Details
-                </button>
-              </div>
             </div>
-          ))}
+            <div className="aauto-categories-scroll" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {CATEGORIES.map(cat => (
+                <button key={cat} onClick={() => setActiveCategory(cat)}
+                  style={{ backgroundColor: activeCategory === cat ? '#00C2FF' : '#FFFFFF', border: activeCategory === cat ? 'none' : '1px solid #E2E8F0', borderRadius: '20px', padding: '6px 16px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', color: activeCategory === cat ? '#FFFFFF' : '#64748B', transition: 'all 0.2s', boxShadow: activeCategory === cat ? '0 2px 4px rgba(0, 194, 255, 0.2)' : 'none' }}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {loadingTemplates ? (
+            <div style={{ padding: '40px', textAlign: 'center', backgroundColor: '#F8FAFC', borderRadius: '16px', border: '1px solid #E2E8F0' }}>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: '#64748B' }}>Loading Template Cloud...</p>
+            </div>
+          ) : (
+            <div className="aauto-templates-grid">
+              {filtered.map(t => (
+                <div key={t.id} onClick={() => setUseCase(t.title + ': ' + t.description)} style={{ backgroundColor: '#F8FAFC', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '24px', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: t.iconBg, color: t.iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+                      {t.iconSvg}
+                    </div>
+                    <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '20px', padding: '4px 10px', fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                      {t.category}
+                    </div>
+                  </div>
+                  <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '15px', color: '#1E293B', margin: '0 0 8px' }}>
+                    {t.title}
+                  </h4>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '13px', lineHeight: '1.5em', color: '#64748B', margin: '0 0 16px', flex: 1 }}>
+                    {t.description}
+                  </p>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '4px 8px', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '10px', color: '#00C2FF' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="12 6 12 12 16 14" /><circle cx="12" cy="12" r="10" /></svg>
+                      Save {t.timeSaved}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '4px 8px', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '10px', color: '#00C2FF' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>
+                      {t.roi}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #E2E8F0', paddingTop: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#CBD5E1', border: '2px solid #F8FAFC', zIndex: 3 }} />
+                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#94A3B8', border: '2px solid #F8FAFC', marginLeft: '-10px', zIndex: 2 }} />
+                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#64748B', border: '2px solid #F8FAFC', marginLeft: '-10px', zIndex: 1 }} />
+                      </div>
+                      <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', color: '#64748B' }}>{t.users}+</span>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onShowDetail();
+                      }}
+                      style={{ backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', color: '#1F2937', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-    </div>
-  );
+    );
 }
 
 // ─── Step 2: Define Details ────────────────────────────────────────────────────
@@ -890,46 +878,61 @@ function StepConfirm({
           )}
         </button>
 
-        {/* Helper text */}
         <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#94A3B8', margin: 0, textAlign: 'center', flex: 1 }}>
           Ready to ship? You can change these details later.
         </p>
-
-        {/* Confirm Booking */}
-        <button
-          onClick={onComplete}
-          disabled={deploying}
-          style={{ backgroundColor: '#00EAFF', border: 'none', borderRadius: '10px', padding: '10px 24px', fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '14px', color: '#1E293B', cursor: deploying ? 'not-allowed' : 'pointer', opacity: deploying ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          {deploying ? (
-            <><svg style={{ width: 16, height: 16, animation: 'spin .8s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Confirming...</>
-          ) : 'Confirm Booking'}
-        </button>
       </div>
     </div>
   );
 }
 
-
 export function AutomationsClient() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [useCase, setUseCase] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [isStopModalOpen, setIsStopModalOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-
   const [problem, setProblem] = useState('');
   const [outcome, setOutcome] = useState('');
   const [tools, setTools] = useState('');
   const [frequency, setFrequency] = useState('Daily');
   const [dailyReport, setDailyReport] = useState(true);
-  const [whatsappAlerts, setWhatsappAlerts] = useState(true);
+  const [whatsappAlerts, setWhatsappAlerts] = useState(false);
   const [weeklyReport, setWeeklyReport] = useState(false);
+
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [isStopModalOpen, setIsStopModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
   const [deploying, setDeploying] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftSaved, setDraftSaved] = useState<string | null>(null);
-
   const [deploySuccess, setDeploySuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadTemplates() {
+      try {
+        const data: any[] = await fetchTemplates();
+        const mapped = data.map(t => ({
+          id: t.id,
+          title: t.title,
+          category: t.type,
+          description: t.short_description,
+          timeSaved: t.time_saved_weekly,
+          roi: t.roi_yearly,
+          users: t.bookings_count || 0,
+          iconBg: '#E0FCF9',
+          iconColor: '#00C2FF',
+          iconSvg: getTemplateIcon(t.type)
+        }));
+        setTemplates(mapped);
+      } catch (err) {
+        console.error('Failed to load templates:', err);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    }
+    loadTemplates();
+  }, []);
 
   const resetForm = () => {
     setUseCase('');
@@ -1001,12 +1004,10 @@ export function AutomationsClient() {
     <>
       <style dangerouslySetInnerHTML={{ __html: css }} />
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', backgroundColor: '#EDF2F7', paddingBottom: '40px' }}>
-        {/* Desktop Header area */}
         <div className="aauto-section-header">
           <HeaderBar title="Ai Automations" />
         </div>
 
-        {/* ── Success Banner ── */}
         {deploySuccess && (
           <div className="aauto-section-banner" style={{ backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '16px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1022,22 +1023,17 @@ export function AutomationsClient() {
           </div>
         )}
 
-        {/* Desktop Stepper (Full Width) */}
         <div className="aauto-section-stepper">
           <div className="aauto-desktop-progress" style={{ position: 'relative', width: '100%', maxWidth: '1318px', height: '56px', margin: '0 auto 32px' }}>
             <div style={{ position: 'absolute', left: 0, top: '48px', width: '100%', height: '8px', backgroundColor: '#F0F4F5', borderRadius: '9999px', overflow: 'hidden' }}>
               <div style={{ width: step === 1 ? '33%' : step === 2 ? '66%' : '100%', height: '100%', background: 'linear-gradient(90deg, #00EAFF 0%, #00D4FF 100%)', borderRadius: '9999px', boxShadow: '0px 0px 8px 0px rgba(0, 234, 255, 0.6)', transition: 'width 0.4s ease' }} />
             </div>
-
-            {/* Step 1 */}
             <div style={{ position: 'absolute', left: 0, top: 0, display: 'flex', alignItems: 'center', gap: '12px', zIndex: 2 }}>
               <div style={{ width: '32px', height: '32px', backgroundColor: '#00EAFF', borderRadius: '9999px', flexShrink: 0, boxShadow: step === 1 ? '0 0 0 4px rgba(0,234,255,0.15)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {step > 1 && <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
               </div>
               <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#4B5563' }}>Use Case</span>
             </div>
-
-            {/* Step 2 */}
             <div style={{ position: 'absolute', left: 'calc(40% - 16px)', top: 0, display: 'flex', alignItems: 'center', gap: '12px', zIndex: 2, opacity: step >= 2 ? 1 : 0.4 }}>
               <div style={{ width: '32px', height: '32px', borderRadius: '9999px', flexShrink: 0, backgroundColor: step >= 2 ? '#00EAFF' : '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: step === 2 ? '0 0 0 4px rgba(0,234,255,0.15)' : 'none' }}>
                 {step > 2 ? (
@@ -1048,8 +1044,6 @@ export function AutomationsClient() {
               </div>
               <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: '#4B5563' }}>Define Details</span>
             </div>
-
-            {/* Step 3 */}
             <div style={{ position: 'absolute', right: 0, top: 0, display: 'flex', alignItems: 'center', gap: '12px', zIndex: 2, opacity: step >= 3 ? 1 : 0.4 }}>
               <div style={{ width: '32px', height: '32px', borderRadius: '9999px', flexShrink: 0, backgroundColor: step >= 3 ? '#00EAFF' : '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '14px', color: step >= 3 ? '#fff' : '#4B5563' }}>3</span>
@@ -1059,12 +1053,8 @@ export function AutomationsClient() {
           </div>
         </div>
 
-        {/* Form Container */}
         <div className="aauto-layout-wrapper">
           <div className="aauto-main-container">
-            {/* Desktop Stepper removed from here */}
-
-            {/* Mobile Progress */}
             <div className="aauto-progress-mobile">
               <div className="aauto-progress-row">
                 <div>
@@ -1082,7 +1072,6 @@ export function AutomationsClient() {
               </div>
             </div>
 
-            {/* Main Content Areas */}
             <div style={{ backgroundColor: '#FFFFFF', borderRadius: '24px', padding: '32px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
               {step === 1 && (
                 <StepUseCase
@@ -1093,6 +1082,8 @@ export function AutomationsClient() {
                   setActiveCategory={setActiveCategory}
                   onStop={() => setIsStopModalOpen(true)}
                   onShowDetail={() => setIsDetailModalOpen(true)}
+                  templates={templates}
+                  loadingTemplates={loadingTemplates}
                 />
               )}
               {step === 2 && (

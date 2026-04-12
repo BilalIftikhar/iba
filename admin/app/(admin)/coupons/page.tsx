@@ -1,6 +1,10 @@
 'use client';
+import { useState } from 'react';
+import Link from 'next/link';
 
 export default function CouponsPage() {
+    const [showCreateModal, setShowCreateModal] = useState(false);
+
     return (
         <div className="pb-6 fade-in">
             {/* Header */}
@@ -10,10 +14,10 @@ export default function CouponsPage() {
                     <p className="text-slate-500 text-sm mt-1 font-medium">Create and manage discount codes for customers</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button className="btn btn-secondary font-bold text-slate-600 bg-white">
+                    <Link href="/messages" className="btn btn-secondary font-bold text-[#00C2FF] bg-white">
                         + New Message
-                    </button>
-                    <button className="btn btn-primary font-bold shadow-sm">
+                    </Link>
+                    <button onClick={() => setShowCreateModal(true)} className="btn btn-primary font-bold shadow-sm">
                         + Create Booking
                     </button>
                 </div>
@@ -198,7 +202,8 @@ export default function CouponsPage() {
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </div>        {showCreateModal && <CreateBookingModal onClose={() => setShowCreateModal(false)} />}
+        
         </div>
     );
 }

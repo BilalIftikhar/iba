@@ -370,7 +370,7 @@ adminRouter.post('/bookings/:id/message', async (req: Request, res: Response) =>
 // GET /api/v1/admin/customers
 adminRouter.get('/customers', async (req: Request, res: Response) => {
     try {
-        const { search, plan, page = '1', limit = '20' } = req.query as Record<string, string>;
+        const { search, plan, status, segment, page = '1', limit = '50' } = req.query as Record<string, string>;
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
         const where: any = { deleted_at: null };
@@ -383,7 +383,7 @@ adminRouter.get('/customers', async (req: Request, res: Response) => {
             ];
         }
 
-        const [customers, total] = await Promise.all([
+        const [customers, totalRaw] = await Promise.all([
             prisma.user.findMany({
                 where,
                 skip,
@@ -398,13 +398,36 @@ adminRouter.get('/customers', async (req: Request, res: Response) => {
             prisma.user.count({ where })
         ]);
 
-        // Filter by plan if provided
+        // Filter by plan, status, segment if provided
         let filtered = customers;
+        
         if (plan) {
-            filtered = customers.filter(c => c.subscription?.plan === plan);
+            filtered = filtered.filter(c => c.subscription?.plan === plan);
+        }
+        
+        if (status) {
+            if (status === 'active') {
+                filtered = filtered.filter(c => c.subscription?.plan);
+            } else if (status === 'trial') {
+                filtered = filtered.filter(c => !c.subscription?.plan);
+            }
+        }
+        
+        if (segment) {
+            if (segment === 'enterprise_clients') {
+                filtered = filtered.filter(c => c.subscription?.plan === 'enterprise');
+            } else if (segment === 'high_value') {
+                filtered = filtered.filter(c => c.subscription?.plan === 'pro' || c.subscription?.plan === 'enterprise');
+            } else if (segment === 'new_signups') {
+                filtered = filtered.filter(c => c.bookings.length > 0 && !c.subscription?.plan);
+            } else if (segment === 'trial_users') {
+                filtered = filtered.filter(c => !c.subscription?.plan);
+            } else if (segment === 'power_users') {
+                filtered = filtered.filter(c => c.bookings.length >= 2);
+            }
         }
 
-        return res.json({ success: true, data: filtered, total, page: parseInt(page), limit: parseInt(limit) });
+        return res.json({ success: true, data: filtered, total: totalRaw, page: parseInt(page), limit: parseInt(limit) });
     } catch (err) {
         console.error('[GET /admin/customers]', err);
         return res.status(500).json({ error: 'Failed to fetch customers' });
@@ -434,6 +457,36 @@ adminRouter.get('/customers/:id', async (req: Request, res: Response) => {
     } catch (err) {
         console.error('[GET /admin/customers/:id]', err);
         return res.status(500).json({ error: 'Failed to fetch customer' });
+    }
+});
+
+// GET /api/v1/admin/customers/:id/thread — Get or create the general message thread for a customer
+adminRouter.get('/customers/:id/thread', async (req: Request, res: Response) => {
+    try {
+        let thread = await prisma.messageThread.findFirst({
+            where: { client_id: req.params.id, category: 'support' },
+            include: { messages: { orderBy: { sent_at: 'asc' } } }
+        });
+
+        // If no thread exists, create one
+        if (!thread) {
+            const client = await prisma.user.findUnique({ where: { id: req.params.id } });
+            if (!client) return res.status(404).json({ error: 'Customer not found' });
+
+            thread = await prisma.messageThread.create({
+                data: {
+                    client_id: req.params.id,
+                    category: 'support',
+                    last_message_at: new Date(),
+                },
+                include: { messages: true }
+            });
+        }
+
+        return res.json({ success: true, data: thread });
+    } catch (err) {
+        console.error('[GET /admin/customers/:id/thread]', err);
+        return res.status(500).json({ error: 'Failed to fetch customer thread' });
     }
 });
 
@@ -703,22 +756,57 @@ adminRouter.patch('/subscriptions/:id', async (req: Request, res: Response) => {
 
 // ── CONTENT CMS ───────────────────────────────────────────────────
 
-// GET /api/v1/admin/cms/automation-templates — fetch all automation use case suggestions
-// These are stored as simple workflow "name" seeds — for now return static list
-// In a real app these would be a CmsTemplate model
+// GET /api/v1/admin/cms/automation-templates — fetch all automation templates
 adminRouter.get('/cms/automation-templates', async (_req: Request, res: Response) => {
-    // For now return the distinct use_case values from bookings as templates
     try {
-        const useCases = await prisma.booking.findMany({
-            select: { use_case: true, type: true, title: true },
-            distinct: ['use_case'],
-            where: { use_case: { not: '' } },
-            take: 50,
+        const templates = await prisma.cmsAutomationTemplate.findMany({
+            orderBy: { display_order: 'asc' }
         });
-        return res.json({ success: true, data: useCases });
+        return res.json({ success: true, data: templates });
     } catch (err) {
         console.error('[GET /admin/cms/automation-templates]', err);
-        return res.status(500).json({ error: 'Failed to fetch templates' });
+        return res.status(500).json({ error: 'Failed to fetch automation templates' });
+    }
+});
+
+// POST /api/v1/admin/cms/automation-templates — create new template
+adminRouter.post('/cms/automation-templates', async (req: Request, res: Response) => {
+    try {
+        const template = await prisma.cmsAutomationTemplate.create({
+            data: req.body
+        });
+        return res.status(201).json({ success: true, data: template });
+    } catch (err) {
+        console.error('[POST /admin/cms/automation-templates]', err);
+        return res.status(500).json({ error: 'Failed to create automation template' });
+    }
+});
+
+// PUT /api/v1/admin/cms/automation-templates/:id — update template
+adminRouter.put('/cms/automation-templates/:id', async (req: Request, res: Response) => {
+    try {
+        const { id, created_at, updated_at, ...updateData } = req.body;
+        const template = await prisma.cmsAutomationTemplate.update({
+            where: { id: req.params.id },
+            data: updateData
+        });
+        return res.json({ success: true, data: template });
+    } catch (err) {
+        console.error('[PUT /admin/cms/automation-templates/:id]', err);
+        return res.status(500).json({ error: 'Failed to update automation template' });
+    }
+});
+
+// DELETE /api/v1/admin/cms/automation-templates/:id — delete template
+adminRouter.delete('/cms/automation-templates/:id', async (req: Request, res: Response) => {
+    try {
+        await prisma.cmsAutomationTemplate.delete({
+            where: { id: req.params.id }
+        });
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('[DELETE /admin/cms/automation-templates/:id]', err);
+        return res.status(500).json({ error: 'Failed to delete automation template' });
     }
 });
 
@@ -849,3 +937,100 @@ adminRouter.get('/team', async (_req: Request, res: Response) => {
         return res.status(500).json({ error: 'Failed to fetch team' });
     }
 });
+
+// ── CUSTOMER SEGMENTS ─────────────────────────────────────────────
+
+adminRouter.get('/segments', async (_req: Request, res: Response) => {
+    try {
+        const segments = await prisma.customerSegment.findMany({
+            include: {
+                manual_members: { 
+                    select: { 
+                        id: true, first_name: true, last_name: true, email: true, 
+                        subscription: { select: { plan: true } } 
+                    } 
+                }
+            },
+            orderBy: { created_at: 'desc' }
+        });
+        return res.json({ success: true, data: segments });
+    } catch (err: any) {
+        console.error('[GET /admin/segments]', err);
+        return res.status(500).json({ error: 'Failed to fetch segments', details: err?.message || String(err) });
+    }
+});
+
+adminRouter.post('/segments', async (req: Request, res: Response) => {
+    try {
+        const {
+            name, description, color, icon,
+            rule_plan, rule_status, rule_bookings_min, rule_joined_days, rule_automation_pct,
+            manual_member_ids
+        } = req.body;
+
+        const segment = await prisma.customerSegment.create({
+            data: {
+                name, description, color, icon,
+                rule_plan, rule_status,
+                rule_bookings_min: rule_bookings_min ? parseInt(rule_bookings_min) : null,
+                rule_joined_days: rule_joined_days ? parseInt(rule_joined_days) : null,
+                rule_automation_pct: rule_automation_pct ? parseInt(rule_automation_pct) : null,
+                ...(manual_member_ids && { manual_members: { connect: manual_member_ids.map((id: string) => ({ id })) } }),
+            },
+            include: { manual_members: { select: { id: true } } }
+        });
+        return res.json({ success: true, data: segment });
+    } catch (err: any) {
+        console.error('[POST /admin/segments]', err);
+        return res.status(500).json({ error: 'Failed to create segment', details: err?.message || String(err) });
+    }
+});
+
+adminRouter.patch('/segments/:id', async (req: Request, res: Response) => {
+    try {
+        const {
+            name, description, color, icon,
+            rule_plan, rule_status, rule_bookings_min, rule_joined_days, rule_automation_pct,
+            manual_member_ids
+        } = req.body;
+
+        const segment = await prisma.customerSegment.update({
+            where: { id: req.params.id },
+            data: {
+                ...(name && { name }),
+                ...(description !== undefined && { description }),
+                ...(color !== undefined && { color }),
+                ...(icon !== undefined && { icon }),
+                ...(rule_plan !== undefined && { rule_plan }),
+                ...(rule_status !== undefined && { rule_status }),
+                ...(rule_bookings_min !== undefined && { rule_bookings_min: rule_bookings_min ? parseInt(rule_bookings_min) : null }),
+                ...(rule_joined_days !== undefined && { rule_joined_days: rule_joined_days ? parseInt(rule_joined_days) : null }),
+                ...(rule_automation_pct !== undefined && { rule_automation_pct: rule_automation_pct ? parseInt(rule_automation_pct) : null }),
+                ...(manual_member_ids && { manual_members: { set: manual_member_ids.map((id: string) => ({ id })) } }), // Override entirely
+            },
+            include: { 
+                manual_members: { 
+                    select: { 
+                        id: true, first_name: true, last_name: true, email: true, 
+                        subscription: { select: { plan: true } } 
+                    } 
+                } 
+            }
+        });
+        return res.json({ success: true, data: segment });
+    } catch (err) {
+        console.error('[PATCH /admin/segments/:id]', err);
+        return res.status(500).json({ error: 'Failed to update segment' });
+    }
+});
+
+adminRouter.delete('/segments/:id', async (req: Request, res: Response) => {
+    try {
+        await prisma.customerSegment.delete({ where: { id: req.params.id } });
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('[DELETE /admin/segments/:id]', err);
+        return res.status(500).json({ error: 'Failed to delete segment' });
+    }
+});
+

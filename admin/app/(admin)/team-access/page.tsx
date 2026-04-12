@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { CreateBookingModal } from '../../components/CreateBookingModal';
 
 export default function TeamAccessPage() {
@@ -13,9 +14,9 @@ export default function TeamAccessPage() {
                     <p className="text-slate-500 text-sm mt-1 font-medium">Manage your IBA admin team members and their access levels</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button className="btn btn-secondary font-bold text-slate-600 bg-white">
+                    <Link href="/messages" className="btn btn-secondary font-bold text-[#00C2FF] bg-white">
                         + New Message
-                    </button>
+                    </Link>
                     <button 
                         onClick={() => setShowCreateModal(true)}
                         className="btn btn-primary font-bold shadow-sm"

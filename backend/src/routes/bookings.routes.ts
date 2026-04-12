@@ -3,6 +3,20 @@ import { prisma } from '../lib/prisma';
 
 export const bookingsRouter = Router();
 
+// GET /api/v1/bookings/templates — Fetch public automation templates
+bookingsRouter.get('/templates', async (_req: Request, res: Response) => {
+    try {
+        const templates = await prisma.cmsAutomationTemplate.findMany({
+            where: { is_published: true },
+            orderBy: { display_order: 'asc' }
+        });
+        return res.status(200).json({ success: true, data: templates });
+    } catch (error: any) {
+        console.error('[GET /bookings/templates]', error);
+        return res.status(500).json({ success: false, error: 'Failed to fetch templates.' });
+    }
+});
+
 // GET /api/v1/bookings — List all bookings for authenticated user
 bookingsRouter.get('/', async (req: Request, res: Response) => {
     try {

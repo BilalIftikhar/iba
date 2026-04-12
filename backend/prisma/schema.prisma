@@ -148,7 +148,36 @@ model User {
   team_as_owner    TeamMember[]   @relation("TeamOwner")
   /// Teams where this user is an invited member
   team_as_member   TeamMember[]   @relation("TeamMember")
+
+  /// Manually assigned dynamic customer segments
+  manual_segments  CustomerSegment[] @relation("ManualSegmentMembers")
 }
+
+// ─────────────────────────────────────────────────────────────
+// CUSTOMER SEGMENTS (DYNAMIC)
+// ─────────────────────────────────────────────────────────────
+
+model CustomerSegment {
+  id                  String   @id @default(uuid())
+  name                String
+  description         String?
+  color               String?  // Hex string
+  icon                String?
+  
+  // Auto-Assignment Rules
+  rule_plan           String?
+  rule_status         String?
+  rule_bookings_min   Int?
+  rule_joined_days    Int?
+  rule_automation_pct Int?
+  
+  // Relationships
+  manual_members      User[]   @relation("ManualSegmentMembers")
+  
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+}
+
 
 model IbaWorkflow {
   id                     String         @id @default(uuid())
@@ -343,4 +372,25 @@ model Notification {
   // ── Relations ──────────────────────────────────────────────
   client  User     @relation(fields: [client_id], references: [id])
   booking Booking? @relation(fields: [booking_id], references: [id])
+}
+
+model CmsAutomationTemplate {
+  id                String   @id @default(uuid())
+  title             String
+  type              String   // Category, e.g. "Marketing"
+  short_description String?
+  full_description  String?
+  use_case          String
+  time_saved_weekly String?
+  time_saved_yearly String?
+  roi_yearly        String?
+  setup_time        String?
+  difficulty        String?  // e.g. "Easy", "Medium", "Hard"
+  tools             String?  // Comma-separated list
+  run_schedule      String?
+  is_published      Boolean  @default(true)
+  display_order     Int      @default(10)
+  bookings_count    Int      @default(0)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
 }

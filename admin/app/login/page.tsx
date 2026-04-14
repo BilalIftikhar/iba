@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { setAdminToken } from '../lib/api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -10,6 +11,8 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const searchParams = useSearchParams();
+    const logoutReason = searchParams.get('reason');
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -55,6 +58,16 @@ export default function LoginPage() {
                     </div>
                     <p className="text-slate-500 text-sm mt-3">Sign in with your admin credentials</p>
                 </div>
+
+                {/* Session expired / Inactivity notice */}
+                {logoutReason && (
+                    <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#92400e' }}>
+                            {logoutReason === 'inactivity' ? 'You were logged out due to 10 minutes of inactivity.' : 'Your session has expired. Please sign in again.'}
+                        </span>
+                    </div>
+                )}
 
                 {/* Card */}
                 <div className="card p-8">

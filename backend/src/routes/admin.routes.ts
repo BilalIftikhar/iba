@@ -810,33 +810,111 @@ adminRouter.delete('/cms/automation-templates/:id', async (req: Request, res: Re
     }
 });
 
+// GET /api/v1/admin/cms/app-templates — fetch all app templates
 adminRouter.get('/cms/app-templates', async (_req: Request, res: Response) => {
     try {
-        const useCases = await prisma.booking.findMany({
-            select: { use_case: true, type: true, title: true },
-            distinct: ['use_case'],
-            where: { use_case: { not: '' }, type: 'custom_app' },
-            take: 50,
+        const templates = await prisma.cmsAppTemplate.findMany({
+            orderBy: { display_order: 'asc' }
         });
-        return res.json({ success: true, data: useCases });
+        return res.json({ success: true, data: templates });
     } catch (err) {
         console.error('[GET /admin/cms/app-templates]', err);
         return res.status(500).json({ error: 'Failed to fetch app templates' });
     }
 });
 
-adminRouter.get('/cms/implementation-templates', async (_req: Request, res: Response) => {
+// POST /api/v1/admin/cms/app-templates — create new app template
+adminRouter.post('/cms/app-templates', async (req: Request, res: Response) => {
     try {
-        const useCases = await prisma.booking.findMany({
-            select: { use_case: true, type: true, title: true },
-            distinct: ['use_case'],
-            where: { use_case: { not: '' } },
-            take: 50,
+        const template = await prisma.cmsAppTemplate.create({
+            data: req.body
         });
-        return res.json({ success: true, data: useCases });
+        return res.status(201).json({ success: true, data: template });
+    } catch (err: any) {
+        console.error('[POST /admin/cms/app-templates]', err);
+        return res.status(500).json({ error: 'Failed to create app template: ' + (err.message || String(err)) });
+    }
+});
+
+// PUT /api/v1/admin/cms/app-templates/:id — update app template
+adminRouter.put('/cms/app-templates/:id', async (req: Request, res: Response) => {
+    try {
+        const { id, created_at, updated_at, ...updateData } = req.body;
+        const template = await prisma.cmsAppTemplate.update({
+            where: { id: req.params.id },
+            data: updateData
+        });
+        return res.json({ success: true, data: template });
     } catch (err) {
-        console.error('[GET /admin/cms/implementation-templates]', err);
-        return res.status(500).json({ error: 'Failed to fetch implementation templates' });
+        console.error('[PUT /admin/cms/app-templates/:id]', err);
+        return res.status(500).json({ error: 'Failed to update app template' });
+    }
+});
+
+// DELETE /api/v1/admin/cms/app-templates/:id — delete app template
+adminRouter.delete('/cms/app-templates/:id', async (req: Request, res: Response) => {
+    try {
+        await prisma.cmsAppTemplate.delete({
+            where: { id: req.params.id }
+        });
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('[DELETE /admin/cms/app-templates/:id]', err);
+        return res.status(500).json({ error: 'Failed to delete app template' });
+    }
+});
+
+// GET /api/v1/admin/cms/ai-examples — fetch all AI examples
+adminRouter.get('/cms/ai-examples', async (_req: Request, res: Response) => {
+    try {
+        const examples = await prisma.cmsAiExample.findMany({
+            orderBy: { display_order: 'asc' }
+        });
+        return res.json({ success: true, data: examples });
+    } catch (err) {
+        console.error('[GET /admin/cms/ai-examples]', err);
+        return res.status(500).json({ error: 'Failed to fetch AI examples' });
+    }
+});
+
+// POST /api/v1/admin/cms/ai-examples — create new AI example
+adminRouter.post('/cms/ai-examples', async (req: Request, res: Response) => {
+    try {
+        const example = await prisma.cmsAiExample.create({
+            data: req.body
+        });
+        return res.status(201).json({ success: true, data: example });
+    } catch (err: any) {
+        console.error('[POST /admin/cms/ai-examples]', err);
+        return res.status(500).json({ error: 'Failed to create AI example: ' + (err.message || String(err)) });
+    }
+});
+
+// PUT /api/v1/admin/cms/ai-examples/:id — update AI example
+adminRouter.put('/cms/ai-examples/:id', async (req: Request, res: Response) => {
+    try {
+        const { id, created_at, updated_at, ...updateData } = req.body;
+        const example = await prisma.cmsAiExample.update({
+            where: { id: req.params.id },
+            data: updateData
+        });
+        return res.json({ success: true, data: example });
+    } catch (err) {
+        console.error('[PUT /admin/cms/ai-examples/:id]', err);
+        return res.status(500).json({ error: 'Failed to update AI example' });
+    }
+});
+
+// DELETE /api/v1/admin/cms/ai-examples/:id — delete AI example
+adminRouter.delete('/cms/ai-examples/:id', async (req: Request, res: Response) => {
+    try {
+        await prisma.cmsAiExample.delete({
+            where: { id: req.params.id }
+        });
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('[DELETE /admin/cms/ai-examples/:id]', err);
+        return res.status(500).json({ error: 'Failed to delete AI example' });
     }
 });
 
@@ -927,14 +1005,44 @@ adminRouter.patch('/workflows/:id', async (req: Request, res: Response) => {
 // GET /api/v1/admin/team
 adminRouter.get('/team', async (_req: Request, res: Response) => {
     try {
-        const admins = await prisma.user.findMany({
-            where: { email: { in: (process.env.ADMIN_EMAILS ?? 'admin@iba.si').split(',').map(e => e.trim()) } },
-            select: { id: true, email: true, first_name: true, last_name: true, created_at: true }
+        const defaultAdmins = ['admin@iba.si', 'superadmin@iba.ai', 'omar@iba.ai', 'priya@iba.ai'];
+        const adminList = (process.env.ADMIN_EMAILS || defaultAdmins.join(',')).split(',').map(e => e.trim());
+        
+        const adminUsers = await prisma.user.findMany({
+            select: { id: true, email: true, first_name: true, last_name: true, role: true, created_at: true }
         });
+
+        const admins = adminUsers.map(u => ({
+            ...u,
+            role: u.email === 'admin@iba.si' ? 'superadmin' : (u.role || 'admin')
+        }));
         return res.json({ success: true, data: admins });
     } catch (err) {
         console.error('[GET /admin/team]', err);
         return res.status(500).json({ error: 'Failed to fetch team' });
+    }
+});
+
+// Update team member (email, first_name, last_name, role)
+adminRouter.put('/team-members/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { first_name, last_name, email, role } = req.body;
+
+        const updated = await prisma.user.update({
+            where: { id },
+            data: {
+                first_name,
+                last_name,
+                email,
+                role: (email === 'admin@iba.si') ? 'superadmin' : role
+            }
+        });
+
+        return res.json({ success: true, data: updated });
+    } catch (err) {
+        console.error('[PUT /admin/team-members/:id]', err);
+        return res.status(500).json({ error: 'Failed to update team member' });
     }
 });
 

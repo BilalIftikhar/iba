@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { AuthHero } from '../AuthHero';
 import { OTPModal } from '../../components/OTPModal';
 import '../auth.css';
@@ -12,13 +13,15 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [showOTP, setShowOTP] = useState(false);
+    const searchParams = useSearchParams();
+    const logoutReason = searchParams.get('reason');
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!email || !password) return;
         setLoading(true);
         setError('');
-        
+
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/auth/login`, {
                 method: 'POST',
@@ -28,18 +31,18 @@ export default function LoginPage() {
             });
 
             const data = await res.json();
-            
+
             if (!res.ok) {
                 throw new Error(data.error || 'Failed to login');
             }
 
             // Save the fast token to localStorage for Authorization headers
             localStorage.setItem('access_token', data.access_token);
-            
+
             // Dispatch OTP
             const otpRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/auth/send-otp`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${data.access_token}`
                 },
@@ -77,6 +80,15 @@ export default function LoginPage() {
                     <p className="auth-form-subtitle">
                         Enter your email and password to sign in.
                     </p>
+
+                    {logoutReason && (
+                        <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontSize: '16px' }}>⚠️</span>
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#92400e' }}>
+                                {logoutReason === 'inactivity' ? 'You were logged out due to 10 minutes of inactivity.' : 'Your session has expired. Please sign in again.'}
+                            </span>
+                        </div>
+                    )}
 
                     {error && (
                         <div className="auth-alert auth-alert-error">⚠️ {error}</div>
@@ -162,11 +174,11 @@ export default function LoginPage() {
             </div>
 
             {showOTP && (
-                <OTPModal 
-                    email={email} 
+                <OTPModal
+                    email={email}
                     purpose="login"
-                    onSuccess={handleOTPSuccess} 
-                    onCancel={() => setShowOTP(false)} 
+                    onSuccess={handleOTPSuccess}
+                    onCancel={() => setShowOTP(false)}
                 />
             )}
         </div>

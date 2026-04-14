@@ -73,6 +73,16 @@ export async function createBooking<T = unknown>(data: Record<string, unknown>):
     });
 }
 
+/** Fetch published app templates for the frontend custom apps page */
+export async function fetchAppTemplates<T = unknown>(): Promise<T> {
+    return apiFetch<T>('/bookings/app-templates');
+}
+
+/** Fetch published AI implementation examples for the frontend implementation page */
+export async function fetchAiExamples<T = unknown>(): Promise<T> {
+    return apiFetch<T>('/bookings/ai-examples');
+}
+
 /**
  * Save a booking as a draft, persisting the full multi-step wizard state.
  * draft_state is stored as JSONB and can be used to restore the form on next visit.

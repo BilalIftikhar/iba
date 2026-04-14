@@ -90,6 +90,12 @@ enum BillingCycle {
   annual
 }
 
+enum UserRole {
+  superadmin
+  admin
+  user
+}
+
 enum TeamRole {
   viewer
   editor
@@ -120,6 +126,7 @@ model User {
   company_name             String?
   phone                    String?
   timezone                 String    @default("UTC")
+  role                     UserRole  @default(user)
   /// Decimal precision for ROI calculations
   hourly_rate              Decimal   @db.Decimal(10, 2)
   /// Self-referential FK: optional account manager (also a User)
@@ -393,4 +400,39 @@ model CmsAutomationTemplate {
   bookings_count    Int      @default(0)
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
+}
+
+model CmsAppTemplate {
+  id                String   @id @default(uuid())
+  title             String
+  category          String   // e.g. "Business Operations", "HR & People"
+  icon              String?  // Emoji icon
+  short_description String?
+  full_description  String?
+  use_case          String   // Auto-fills booking form
+  roi_yearly        String?
+  delivery_time     String?  // e.g. "10-14 days"
+  app_type          String?  @default("Web App (React)")
+  difficulty        String?  // "Easy", "Medium", "Hard"
+  key_features      String?  // Newline-separated features
+  data_sources      String?  // Comma-separated data sources
+  best_for          String?
+  is_published      Boolean  @default(true)
+  display_order     Int      @default(10)
+  bookings_count    Int      @default(0)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+}
+model CmsAiExample {
+  id            String   @id @default(uuid())
+  title         String
+  description   String
+  icon_url      String?
+  icon_emoji    String?
+  display_order Int      @default(10)
+  is_published  Boolean  @default(true)
+  view_count    Int      @default(0)
+  enquiry_count Int      @default(0)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 }

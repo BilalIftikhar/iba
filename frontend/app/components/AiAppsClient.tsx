@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { OptimizePromptButton } from './OptimizePromptButton';
 import { AnimatedTextarea } from './AnimatedTextarea';
 import { mockAiOptimize } from '../lib/mockAiOptimize';
@@ -10,6 +10,22 @@ interface AiAppsForm {
   description: string;
   dataSources: string[];
   otherSources: string[];   // custom user-entered data sources
+}
+
+interface CmsAppTemplate {
+  id: string;
+  title: string;
+  category: string;
+  icon: string;
+  short_description: string;
+  full_description: string;
+  use_case: string;
+  roi_yearly: string;
+  delivery_time: string;
+  difficulty: string;
+  key_features: string;
+  data_sources: string;
+  is_published: boolean;
 }
 
 // ─── Data Source Options ──────────────────────────────────────────────────────
@@ -28,36 +44,22 @@ const DATA_SOURCES = [
   { id: 'other',       label: 'Other',         icon: '➕', selected: false },
 ];
 
-const TEMPLATES = [
+// Fallback templates if API returns nothing
+const FALLBACK_TEMPLATES = [
   {
     title: 'Client Portal',
     description: 'Secure dashboard for your clients to view documents and track progress.',
-    icon: (
-      <svg width="24" height="18" viewBox="0 0 24 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="1" y="1" width="22" height="16" rx="2" />
-        <path d="M1 5h22" />
-      </svg>
-    ),
+    icon: '🤝',
   },
   {
     title: 'Inventory Management',
     description: 'Track stock levels, orders, sales and deliveries in real-time.',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="1" y="1" width="20" height="20" rx="2" />
-        <path d="M7 1v20M15 1v20M1 7h20M1 15h20" />
-      </svg>
-    ),
+    icon: '📦',
   },
   {
     title: 'Employee Onboarding',
     description: 'Streamline new hire paperwork and training modules effortlessly.',
-    icon: (
-      <svg width="20" height="22" viewBox="0 0 20 22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M10 1a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" />
-        <path d="M1 21v-1a9 9 0 0 1 18 0v1" />
-      </svg>
-    ),
+    icon: '👋',
   },
 ];
 
@@ -262,7 +264,7 @@ function DesktopProgress({ activeStep }: { activeStep: 1 | 2 | 3 }) {
 }
 
 // ─── Step 1: Use Case ─────────────────────────────────────────────────────────
-function StepUseCase({ form, setForm, onNext }: { form: AiAppsForm; setForm: (f: AiAppsForm) => void; onNext: () => void }) {
+function StepUseCase({ form, setForm, onNext, templates }: { form: AiAppsForm; setForm: (f: AiAppsForm) => void; onNext: () => void; templates: { title: string; description: string; icon: string; use_case?: string }[] }) {
   const [hovered, setHovered] = useState<string | null>(null);
 
   return (
@@ -308,16 +310,16 @@ function StepUseCase({ form, setForm, onNext }: { form: AiAppsForm; setForm: (f:
 
           {/* Template cards */}
           <div className="aiapps-template-grid">
-            {TEMPLATES.map((tpl) => (
+            {templates.map((tpl) => (
               <div
                 key={tpl.title}
                 onMouseEnter={() => setHovered(tpl.title)}
                 onMouseLeave={() => setHovered(null)}
-                onClick={() => { setForm({ ...form, description: `I need a ${tpl.title} app. ${tpl.description}` }); onNext(); }}
+                onClick={() => { setForm({ ...form, description: tpl.use_case || `I need a ${tpl.title} app. ${tpl.description}` }); onNext(); }}
                 style={{ backgroundColor: '#FFFFFF', border: `1px solid ${hovered === tpl.title ? '#00EAFF' : '#E2E8F0'}`, borderRadius: '12px', boxShadow: hovered === tpl.title ? '0 0 0 1px rgba(0,234,255,0.2), 0px 1px 2px rgba(0,0,0,0.05)' : '0px 1px 2px rgba(0,0,0,0.05)', padding: '25px', cursor: 'pointer', transition: 'border-color 0.15s ease, box-shadow 0.15s ease', display: 'flex', flexDirection: 'column' }}
               >
-                <div style={{ width: '48px', height: '48px', backgroundColor: '#F3F4F6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4B5563', marginBottom: '16px' }}>
-                  {tpl.icon}
+                <div style={{ width: '48px', height: '48px', backgroundColor: '#F3F4F6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '16px' }}>
+                  {tpl.icon || '📱'}
                 </div>
                 <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '16px', lineHeight: '24px', color: '#1F2937', margin: '0 0 4px' }}>{tpl.title}</p>
                 <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '12px', lineHeight: '16px', color: '#6B7280', margin: '0 0 12px', flex: 1 }}>{tpl.description}</p>
@@ -853,7 +855,25 @@ export function AiAppsClient() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [deploySuccess, setDeploySuccess] = useState<string | null>(null);
   const [form, setForm] = useState<AiAppsForm>(DEFAULT_FORM);
+  const [appTemplates, setAppTemplates] = useState<{ title: string; description: string; icon: string; use_case?: string }[]>(FALLBACK_TEMPLATES);
   const reset = () => { setStep(1); setDeploySuccess(null); setForm(DEFAULT_FORM); };
+
+  useEffect(() => {
+    import('../lib/api').then(({ fetchAppTemplates }) => {
+      fetchAppTemplates<CmsAppTemplate[]>()
+        .then((data) => {
+          if (data && data.length > 0) {
+            setAppTemplates(data.map(t => ({
+              title: t.title,
+              description: t.short_description || t.use_case?.substring(0, 80) || '',
+              icon: t.icon || '📱',
+              use_case: t.use_case,
+            })));
+          }
+        })
+        .catch(console.error);
+    });
+  }, []);
 
   return (
     <div style={{ minHeight: '100%', backgroundColor: '#F3F4F6', display: 'flex', flexDirection: 'column' }}>
@@ -891,7 +911,7 @@ export function AiAppsClient() {
       {/* ── Content ── */}
       <div className="aiapps-content-top" style={{ flex: 1, paddingTop: '24px' }}>
         <>
-          {step === 1 && <StepUseCase form={form} setForm={setForm} onNext={() => setStep(2)} />}
+          {step === 1 && <StepUseCase form={form} setForm={setForm} onNext={() => setStep(2)} templates={appTemplates} />}
           {step === 2 && <StepDataSource form={form} setForm={setForm} onNext={() => setStep(3)} onBack={() => setStep(1)} />}
           {step === 3 && <StepReviewBook form={form} onBack={() => setStep(2)} onConfirm={(id) => { setDeploySuccess(id); setStep(1); setForm(DEFAULT_FORM); }} />}
         </>

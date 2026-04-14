@@ -51,7 +51,7 @@ export async function adminFetch<T>(path: string, options?: RequestInit): Promis
     if (res.status === 401) {
         if (typeof window !== 'undefined') {
             localStorage.removeItem('admin_token');
-            window.location.href = '/login';
+            window.location.href = '/login?reason=expired';
         }
         throw new Error('[AdminAPI] 401 Unauthorized');
     }

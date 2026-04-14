@@ -131,15 +131,6 @@ const NAV_ITEMS = [
                     </svg>
                 ),
             },
-            {
-                href: '/workflows',
-                label: 'Workflows',
-                icon: (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                    </svg>
-                ),
-            },
         ]
     },
 ];
@@ -163,7 +154,7 @@ export function AdminSidebar({ badges }: Props) {
     useEffect(() => {
         adminFetch<{ first_name: string; last_name: string; email: string }>('/auth/me')
             .then(d => setProfile(d))
-            .catch(() => {});
+            .catch(() => { });
     }, []);
 
     const handleLogout = () => {
@@ -184,11 +175,11 @@ export function AdminSidebar({ badges }: Props) {
                     </svg>
                 </button>
                 <div className="flex items-baseline gap-0.5">
-                    <span className="text-xl font-black text-white">IBA</span>
+                    <span className="text-xl font-black text-slate-800">IBA</span>
                     <span className="text-xl font-black text-rose-500">.</span>
                     <span className="ml-2 text-[10px] font-bold bg-rose-500/10 text-rose-500 px-2 py-0.5 rounded-full uppercase">Admin</span>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-[#00C2FF]/10 flex items-center justify-center text-[#0099CC] text-xs font-bold">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
                     {profile ? profile.first_name[0] : 'A'}
                 </div>
             </header>
@@ -228,14 +219,13 @@ export function AdminSidebar({ badges }: Props) {
                                 const isCMSChildActive = ['/automation-templates', '/app-templates', '/implementation', '/content-cms'].some(p => pathname.startsWith(p));
                                 const active = isActive(item.href) || (item.label === 'Content CMS' && isCMSChildActive);
                                 const badgeCount = item.badgeKey ? (badges?.[item.badgeKey as keyof typeof badges] ?? 0) : 0;
-                                
+
                                 if (item.isNested && !cmsOpen) return null;
 
-                                const commonClasses = `flex items-center w-full gap-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 mb-0.5 ${
-                                    active
+                                const commonClasses = `flex items-center w-full gap-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 mb-0.5 ${active
                                         ? `bg-[#22243d] ${item.isNested ? 'text-white' : 'text-[#4f8ff7]'} font-semibold`
                                         : 'text-[#8b8b9f] hover:text-white hover:bg-white/5'
-                                } ${item.isNested ? 'pl-10 pr-3' : 'px-3'}`;
+                                    } ${item.isNested ? 'pl-10 pr-3' : 'px-3'}`;
 
                                 const content = (
                                     <>
@@ -243,13 +233,13 @@ export function AdminSidebar({ badges }: Props) {
                                             {item.icon}
                                         </span>
                                         <span className="flex-1 truncate text-left">{item.label}</span>
-                                        
+
                                         {item.isFolder && (
                                             <span className={`shrink-0 ml-auto ${active ? 'text-[#4f8ff7] text-[10px]' : 'text-[#6b6b7f]'}`}>
                                                 {cmsOpen ? '▼' : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>}
                                             </span>
                                         )}
-                                        
+
                                         {badgeCount > 0 && (
                                             <span className="ml-auto text-[11px] font-bold bg-[#ef4444] text-white rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1">
                                                 {badgeCount > 99 ? '99+' : badgeCount}

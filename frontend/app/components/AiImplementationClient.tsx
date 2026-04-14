@@ -1,5 +1,27 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { HeaderBar } from './HeaderBar';
+import { fetchAiExamples } from '../lib/api';
+
+// ─── Interfaces ──────────────────────────────────────────────────────────────
+interface AiExample {
+  id: string;
+  title: string;
+  description: string;
+  icon_url?: string;
+  icon_emoji?: string;
+}
+
+const FALLBACK_EXAMPLES: AiExample[] = [
+  { id: 'f1', title: 'Sales Assistant', description: 'Real-time lead qualification and automated follow-up scheduling engine.', icon_emoji: '📈' },
+  { id: 'f2', title: 'Onboarding Bot', description: 'Automated staff training and internal policy knowledge base assistant.', icon_emoji: '🤖' },
+  { id: 'f3', title: 'Operations App', description: 'End-to-end process automation engine for supply chain visibility.', icon_emoji: '⚙️' },
+  { id: 'f4', title: 'Reporting Tool', description: 'Predictive data analytics providing actionable insights for QBRs.', icon_emoji: '📊' },
+  { id: 'f5', title: 'Inventory AI', description: 'Advanced supply chain optimizer using neural demand forecasting.', icon_emoji: '📦' },
+  { id: 'f6', title: 'Customer Support', description: 'Multilingual 24/7 chat solution with emotional sentiment analysis.', icon_emoji: '🎧' }
+];
+
 // ─── Icons ────────────────────────────────────────────────────────────────────
 function BarChartIcon() {
   return (
@@ -38,10 +60,20 @@ function RocketIcon() {
   );
 }
 
-import { HeaderBar } from './HeaderBar';
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 export function AiImplementationClient() {
+  const [examples, setExamples] = useState<AiExample[]>(FALLBACK_EXAMPLES);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAiExamples<AiExample[]>()
+      .then(data => {
+        if (data && data.length > 0) setExamples(data);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div style={{ minHeight: '100%', backgroundColor: '#F3F4F6', display: 'flex', flexDirection: 'column' }}>
       <style>{`
@@ -294,118 +326,32 @@ export function AiImplementationClient() {
           </div>
 
           <div className="aiimpl-grid-examples">
-            {/* Example: Sales Assistant */}
-            <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', overflow: 'hidden', boxShadow: '0px 1px 3px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: '160px', backgroundColor: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-                <div style={{ width: '100%', height: '100%', border: '1px solid #334155', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', gap: '4px' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#334155'}}/><div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#334155'}}/></div>
-                  <div style={{ height: '2px', width: '40%', backgroundColor: '#00EAFF', marginTop: 'auto' }}/>
-                  <div style={{ height: '2px', width: '30%', backgroundColor: '#00EAFF', opacity: 0.5 }}/>
+            {examples.map((ex, idx) => (
+              <div key={ex.id || idx} style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', overflow: 'hidden', boxShadow: '0px 1px 3px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ height: '160px', backgroundColor: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+                  {ex.icon_url ? (
+                    <img src={ex.icon_url} alt="" style={{ maxWidth: '80%', maxHeight: '80%', objectFit: 'contain' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', border: '1px solid #334155', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }}>
+                      <div style={{ display: 'flex', gap: '4px' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#334155'}}/><div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#334155'}}/></div>
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '48px' }}>
+                        {ex.icon_emoji || '🤖'}
+                      </div>
+                      <div style={{ height: '2px', width: '40%', backgroundColor: '#00EAFF', marginTop: 'auto' }}/>
+                      <div style={{ height: '2px', width: '30%', backgroundColor: '#00EAFF', opacity: 0.5 }}/>
+                    </div>
+                  )}
+                </div>
+                <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '16px', color: '#1F2937', margin: '0 0 8px' }}>{ex.title}</h4>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', color: '#64748B', lineHeight: '1.5', margin: '0 0 24px', flex: 1 }}>{ex.description}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', color: '#00EAFF', textTransform: 'uppercase' }}>CASE STUDY</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </div>
                 </div>
               </div>
-              <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '16px', color: '#1F2937', margin: '0 0 8px' }}>Sales Assistant</h4>
-                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', color: '#64748B', lineHeight: '1.5', margin: '0 0 24px', flex: 1 }}>Real-time lead qualification and automated follow-up scheduling engine.</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', color: '#00EAFF', textTransform: 'uppercase' }}>CASE STUDY</span>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Example: Onboarding Bot */}
-            <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', overflow: 'hidden', boxShadow: '0px 1px 3px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: '160px', backgroundColor: '#E2E8F0', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0 40px' }}>
-                <div style={{ height: '120px', width: '100%', backgroundColor: '#FFFFFF', borderTopLeftRadius: '12px', borderTopRightRadius: '12px', boxShadow: '0 -4px 6px rgba(0,0,0,0.05)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ height: '4px', width: '40%', backgroundColor: '#CBD5E1', borderRadius: '2px'}}/>
-                  <div style={{ height: '32px', width: '100%', backgroundColor: '#F1F5F9', borderRadius: '4px'}}/>
-                  <div style={{ height: '32px', width: '100%', backgroundColor: '#F1F5F9', borderRadius: '4px'}}/>
-                </div>
-              </div>
-              <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '16px', color: '#1F2937', margin: '0 0 8px' }}>Onboarding Bot</h4>
-                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', color: '#64748B', lineHeight: '1.5', margin: '0 0 24px', flex: 1 }}>Automated staff training and internal policy knowledge base assistant.</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', color: '#00EAFF', textTransform: 'uppercase' }}>CASE STUDY</span>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Example: Operations App */}
-            <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', overflow: 'hidden', boxShadow: '0px 1px 3px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: '160px', backgroundColor: '#1E293B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="1.5">
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                </svg>
-              </div>
-              <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '16px', color: '#1F2937', margin: '0 0 8px' }}>Operations App</h4>
-                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', color: '#64748B', lineHeight: '1.5', margin: '0 0 24px', flex: 1 }}>End-to-end process automation engine for supply chain visibility.</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', color: '#00EAFF', textTransform: 'uppercase' }}>CASE STUDY</span>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Example: Reporting Tool */}
-            <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', overflow: 'hidden', boxShadow: '0px 1px 3px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: '160px', backgroundColor: '#064E3B', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '8px', padding: '0 24px' }}>
-                <div style={{ height: '40px', width: '20px', backgroundColor: '#34D399', borderTopLeftRadius: '2px', borderTopRightRadius: '2px'}}/>
-                <div style={{ height: '70px', width: '20px', backgroundColor: '#34D399', borderTopLeftRadius: '2px', borderTopRightRadius: '2px'}}/>
-                <div style={{ height: '120px', width: '20px', backgroundColor: '#10B981', borderTopLeftRadius: '2px', borderTopRightRadius: '2px'}}/>
-                <div style={{ height: '50px', width: '20px', backgroundColor: '#34D399', borderTopLeftRadius: '2px', borderTopRightRadius: '2px'}}/>
-                <div style={{ height: '90px', width: '20px', backgroundColor: '#34D399', borderTopLeftRadius: '2px', borderTopRightRadius: '2px'}}/>
-              </div>
-              <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '16px', color: '#1F2937', margin: '0 0 8px' }}>Reporting Tool</h4>
-                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', color: '#64748B', lineHeight: '1.5', margin: '0 0 24px', flex: 1 }}>Predictive data analytics providing actionable insights for QBRs.</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', color: '#00EAFF', textTransform: 'uppercase' }}>CASE STUDY</span>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Example: Inventory AI */}
-            <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', overflow: 'hidden', boxShadow: '0px 1px 3px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: '160px', backgroundColor: '#7C2D12', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
-                  {[...Array(16)].map((_, i) => (
-                    <div key={i} style={{ width: '16px', height: '16px', backgroundColor: '#FCD34D', opacity: Math.random() > 0.5 ? 1 : 0.3, borderRadius: '2px' }}/>
-                  ))}
-                </div>
-              </div>
-              <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '16px', color: '#1F2937', margin: '0 0 8px' }}>Inventory AI</h4>
-                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', color: '#64748B', lineHeight: '1.5', margin: '0 0 24px', flex: 1 }}>Advanced supply chain optimizer using neural demand forecasting.</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', color: '#00EAFF', textTransform: 'uppercase' }}>CASE STUDY</span>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Example: Customer Support */}
-            <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', overflow: 'hidden', boxShadow: '0px 1px 3px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: '160px', backgroundColor: '#0E7490', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#A5F3FC" strokeWidth="1.5">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  <circle cx="8" cy="10" r="1" fill="#A5F3FC"/>
-                  <circle cx="12" cy="10" r="1" fill="#A5F3FC"/>
-                  <circle cx="16" cy="10" r="1" fill="#A5F3FC"/>
-                </svg>
-              </div>
-              <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h4 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '16px', color: '#1F2937', margin: '0 0 8px' }}>Customer Support</h4>
-                <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, fontSize: '14px', color: '#64748B', lineHeight: '1.5', margin: '0 0 24px', flex: 1 }}>Multilingual 24/7 chat solution with emotional sentiment analysis.</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', color: '#00EAFF', textTransform: 'uppercase' }}>CASE STUDY</span>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
@@ -481,17 +427,14 @@ export function AiImplementationClient() {
           {/* What We Build Mobile */}
           <h2 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '20px', color: '#0F172A', margin: '0 0 20px' }}>What We Build</h2>
           <div className="aiimpl-grid-examples">
-             {[
-               { title: 'Sales Assistant', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg> },
-               { title: 'Onboarding Bot', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> },
-               { title: 'Operations App', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
-               { title: 'Reporting Tool', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
-               { title: 'Inventory AI', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.27 6.96L12 12.01l8.73-5.05"/><path d="M12 22.08V12"/></svg> },
-               { title: 'Customer Support', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00EAFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> }
-             ].map((app, i) => (
-                <div key={i} style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '24px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '16px', boxShadow: '0px 1px 3px rgba(0,0,0,0.05)' }}>
+             {examples.map((app, i) => (
+                <div key={app.id || i} style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '24px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '12px', boxShadow: '0px 1px 3px rgba(0,0,0,0.05)' }}>
                    <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#F0F9FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {app.icon}
+                      {app.icon_url ? (
+                        <img src={app.icon_url} alt="" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+                      ) : (
+                        <span style={{ fontSize: '24px' }}>{app.icon_emoji || '🤖'}</span>
+                      )}
                    </div>
                    <h3 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '15px', color: '#0F172A', margin: 0 }}>{app.title}</h3>
                 </div>

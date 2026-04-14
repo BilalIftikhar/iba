@@ -17,6 +17,34 @@ bookingsRouter.get('/templates', async (_req: Request, res: Response) => {
     }
 });
 
+// GET /api/v1/bookings/app-templates — Fetch public app templates for frontend
+bookingsRouter.get('/app-templates', async (_req: Request, res: Response) => {
+    try {
+        const templates = await prisma.cmsAppTemplate.findMany({
+            where: { is_published: true },
+            orderBy: { display_order: 'asc' }
+        });
+        return res.status(200).json({ success: true, data: templates });
+    } catch (error: any) {
+        console.error('[GET /bookings/app-templates]', error);
+        return res.status(500).json({ success: false, error: 'Failed to fetch app templates.' });
+    }
+});
+
+// GET /api/v1/bookings/ai-examples — Fetch public AI examples for frontend
+bookingsRouter.get('/ai-examples', async (_req: Request, res: Response) => {
+    try {
+        const examples = await prisma.cmsAiExample.findMany({
+            where: { is_published: true },
+            orderBy: { display_order: 'asc' }
+        });
+        return res.status(200).json({ success: true, data: examples });
+    } catch (error: any) {
+        console.error('[GET /bookings/ai-examples]', error);
+        return res.status(500).json({ success: false, error: 'Failed to fetch AI examples.' });
+    }
+});
+
 // GET /api/v1/bookings — List all bookings for authenticated user
 bookingsRouter.get('/', async (req: Request, res: Response) => {
     try {

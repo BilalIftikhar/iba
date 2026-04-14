@@ -39,9 +39,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         // Fallback polling (every 30s)
         const interval = setInterval(fetchStats, 30000);
 
+        // ── 10-minute inactivity auto-logout ──────────────────────
+        const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10 minutes
+        let inactivityTimer: ReturnType<typeof setTimeout>;
+
+        const resetInactivityTimer = () => {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => {
+                // Clear token and redirect
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem('admin_token');
+                    window.location.href = '/login?reason=inactivity';
+                }
+            }, INACTIVITY_LIMIT);
+        };
+
+        // Track user activity
+        const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+        activityEvents.forEach(evt => window.addEventListener(evt, resetInactivityTimer, { passive: true }));
+        resetInactivityTimer(); // Start the timer
+
         return () => {
             socket.off('admin:new_message', fetchStats);
             clearInterval(interval);
+            clearTimeout(inactivityTimer);
+            activityEvents.forEach(evt => window.removeEventListener(evt, resetInactivityTimer));
         };
     }, [router]);
 

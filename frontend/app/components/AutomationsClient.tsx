@@ -68,9 +68,15 @@ interface Template {
   title: string;
   category: string;
   description: string;
+  fullDescription?: string;
   timeSaved: string;
   roi: string;
   users: number;
+  tools?: string;
+  runSchedule?: string;
+  setupTime?: string;
+  difficulty?: string;
+  useCase?: string;
   iconBg: string;
   iconColor: string;
   iconSvg: React.ReactNode;
@@ -283,7 +289,7 @@ function StepUseCase({
   activeCategory: string;
   setActiveCategory: (v: string) => void;
   onStop: () => void;
-  onShowDetail: () => void;
+  onShowDetail: (template: Template) => void;
   templates: Template[];
   loadingTemplates: boolean;
 }) {
@@ -420,7 +426,7 @@ function StepUseCase({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onShowDetail();
+                        onShowDetail(t);
                       }}
                       style={{ backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '12px', color: '#1F2937', display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
@@ -902,6 +908,7 @@ export function AutomationsClient() {
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [isStopModalOpen, setIsStopModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
 
   const [deploying, setDeploying] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -917,9 +924,15 @@ export function AutomationsClient() {
           title: t.title,
           category: t.type,
           description: t.short_description,
+          fullDescription: t.full_description || '',
           timeSaved: t.time_saved_weekly,
           roi: t.roi_yearly,
           users: t.bookings_count || 0,
+          tools: t.tools || '',
+          runSchedule: t.run_schedule || '',
+          setupTime: t.setup_time || '2-3 days',
+          difficulty: t.difficulty || 'Medium',
+          useCase: t.use_case || '',
           iconBg: '#E0FCF9',
           iconColor: '#00C2FF',
           iconSvg: getTemplateIcon(t.type)
@@ -1081,7 +1094,10 @@ export function AutomationsClient() {
                   activeCategory={activeCategory}
                   setActiveCategory={setActiveCategory}
                   onStop={() => setIsStopModalOpen(true)}
-                  onShowDetail={() => setIsDetailModalOpen(true)}
+                  onShowDetail={(tmpl: Template) => {
+                    setSelectedTemplate(tmpl);
+                    setIsDetailModalOpen(true);
+                  }}
                   templates={templates}
                   loadingTemplates={loadingTemplates}
                 />
@@ -1128,7 +1144,28 @@ export function AutomationsClient() {
         />
         <PipelineOverviewModal
           isOpen={isDetailModalOpen}
-          onClose={() => setIsDetailModalOpen(false)}
+          onClose={() => {
+            setIsDetailModalOpen(false);
+            setSelectedTemplate(null);
+          }}
+          template={selectedTemplate ? {
+            id: selectedTemplate.id,
+            title: selectedTemplate.title,
+            category: selectedTemplate.category,
+            description: selectedTemplate.description,
+            fullDescription: selectedTemplate.fullDescription,
+            timeSaved: selectedTemplate.timeSaved,
+            roi: selectedTemplate.roi,
+            users: selectedTemplate.users,
+            tools: selectedTemplate.tools,
+            runSchedule: selectedTemplate.runSchedule,
+            setupTime: selectedTemplate.setupTime,
+            difficulty: selectedTemplate.difficulty,
+            useCase: selectedTemplate.useCase,
+          } : null}
+          onSelectTemplate={(tmpl) => {
+            setUseCase(tmpl.title + ': ' + (tmpl.description || ''));
+          }}
         />
       </div>
     </>

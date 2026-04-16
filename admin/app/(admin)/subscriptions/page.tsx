@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { CreateBookingModal } from '../../components/CreateBookingModal';
 
 export default function SubscriptionsPage() {
     const [showCreateModal, setShowCreateModal] = useState(false);

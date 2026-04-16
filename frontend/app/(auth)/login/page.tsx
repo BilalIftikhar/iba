@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AuthHero } from '../AuthHero';
 import { OTPModal } from '../../components/OTPModal';
 import '../auth.css';
 
-export default function LoginPage() {
+function LoginContent() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -182,5 +182,13 @@ export default function LoginPage() {
                 />
             )}
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="auth-page"><div className="auth-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div></div>}>
+            <LoginContent />
+        </Suspense>
     );
 }

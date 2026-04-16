@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { adminFetch } from '../lib/api';
+import { adminFetch, adminUploadFile } from '../lib/api';
 import { useScrollLock } from '../lib/useScrollLock';
 
 export function ReviewBookingPanel({ 

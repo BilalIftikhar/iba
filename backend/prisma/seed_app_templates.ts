@@ -1,8 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
-async function main() {
+export async function seedAppTemplates(prisma: PrismaClient) {
   const templates = [
     {
       title: 'Client Portal',
@@ -64,7 +62,3 @@ async function main() {
 
   console.log(`✅ Seeded ${templates.length} app templates`);
 }
-
-main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());

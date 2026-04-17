@@ -1,8 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
-async function main() {
+export async function seedAiExamples(prisma: PrismaClient) {
   const examples = [
     {
       id: 'ai-sales-assistant',
@@ -64,7 +62,3 @@ async function main() {
 
   console.log(`✅ Seeded ${examples.length} AI implementation examples`);
 }
-
-main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());

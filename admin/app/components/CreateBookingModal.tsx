@@ -73,7 +73,7 @@ export function CreateBookingModal({ onClose, onCreated, initialCustomerId }: Pr
 
     const typeOptions = [
         { value: 'automation', label: 'AI Automation & Agents', icon: '⚡' },
-        { value: 'cowork', label: 'AI Co-Work', icon: '🤝' },
+        // { value: 'cowork', label: 'AI Co-Work', icon: '🤝' },
         { value: 'custom_app', label: 'AI Custom App', icon: '📱' },
         { value: 'implementation', label: 'Implementation', icon: '🔄' },
     ];

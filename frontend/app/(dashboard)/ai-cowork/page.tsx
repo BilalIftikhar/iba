@@ -1,4 +1,4 @@
-import { CoWorkClient } from '@/app/components/CoWorkClient';
+// import { CoWorkClient } from '@/app/components/CoWorkClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,5 +7,5 @@ export const metadata = {
 };
 
 export default function AiCoWorkPage() {
-  return <CoWorkClient />;
+  return null; // <CoWorkClient />;
 }

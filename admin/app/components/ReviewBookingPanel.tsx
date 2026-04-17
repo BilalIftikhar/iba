@@ -180,7 +180,7 @@ export function ReviewBookingPanel({
         const map: Record<string, string> = {
             automation: 'AI Automation & Agents',
             custom_app: 'AI Custom App',
-            cowork: 'AI Co-Work',
+            // cowork: 'AI Co-Work',
             implementation: 'Implementation',
         };
         return map[type?.toLowerCase()] || type;

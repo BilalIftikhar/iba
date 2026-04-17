@@ -53,6 +53,7 @@ const AUTOMATE_NAV = [
             </svg>
         ),
     },
+/*
     {
         href: '/ai-cowork',
         label: 'Ai Co-Work',
@@ -64,6 +65,7 @@ const AUTOMATE_NAV = [
             </svg>
         ),
     },
+*/
     {
         href: '/ai-apps',
         label: 'Ai Custom Apps',

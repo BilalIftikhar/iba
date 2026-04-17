@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { fetchBookings } from '../lib/api';
 
 // ─── Icons ───────────────────────────────────────────────────────
@@ -378,10 +379,13 @@ export function BookingsClient() {
                             <p className="text-[13px] text-[#64748B] mt-1.5">Real-time monitoring and management of automated pipelines.</p>
                         </div>
                         <div className="absolute right-0 top-1/2 -translate-y-1/2">
-                            <button className="flex items-center gap-2 px-5 py-2.5 bg-[#00c2ff] text-white rounded-full text-[13px] font-bold shadow-[0_4px_16px_rgba(0,194,255,0.3)] hover:bg-[#00b0e8] transition-colors">
+                            <Link 
+                                href="/automations"
+                                className="flex items-center gap-2 px-5 py-2.5 bg-[#00c2ff] text-white rounded-full text-[13px] font-bold shadow-[0_4px_16px_rgba(0,194,255,0.3)] hover:bg-[#00b0e8] transition-colors"
+                            >
                                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                                 New Booking
-                            </button>
+                            </Link>
                         </div>
                     </div>
 
@@ -417,10 +421,13 @@ export function BookingsClient() {
                         <div className="text-center mb-6">
                             <h1 className="text-[20px] font-bold text-slate-800 tracking-tight">Your Bookings</h1>
                             <p className="text-[12px] text-[#64748B] mt-1 mb-4">Real-time monitoring and management.</p>
-                            <button className="inline-flex items-center gap-2 px-6 py-3 bg-[#00c2ff] text-white rounded-full text-[13px] font-bold shadow-md w-full justify-center">
+                            <Link 
+                                href="/automations"
+                                className="inline-flex items-center gap-2 px-6 py-3 bg-[#00c2ff] text-white rounded-full text-[13px] font-bold shadow-md w-full justify-center"
+                            >
                                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                                 New Booking
-                            </button>
+                            </Link>
                         </div>
 
                         {/* Flex card horizontal scroll */}
